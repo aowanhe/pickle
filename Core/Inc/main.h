@@ -46,6 +46,8 @@ extern _Bool motor5_flag;
 
 extern uint16_t Fixedcnt;
 
+extern uint16_t repeat_flag;
+
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
 

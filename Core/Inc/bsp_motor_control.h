@@ -133,34 +133,7 @@ void random_control(void);
 void Fixed_control(void);
 int Fixed_chose(char *second_char);
 
-void A1_control(void);
-void A2_control(void);
-void A3_control(void);
-void A4_control(void);
-void A5_control(void);
+void repeat_function(void);
 
-void B1_control(void);
-void B2_control(void);
-void B3_control(void);
-void B4_control(void);
-void B5_control(void);
-
-void C1_control(void);
-void C2_control(void);
-void C3_control(void);
-void C4_control(void);
-void C5_control(void);
-
-void D1_control(void);
-void D2_control(void);
-void D3_control(void);
-void D4_control(void);
-void D5_control(void);
-
-void E1_control(void);
-void E2_control(void);
-void E3_control(void);
-void E4_control(void);
-void E5_control(void);
 #endif /* __LED_H */
 

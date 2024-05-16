@@ -121,12 +121,8 @@ char *get_rebuff(uint16_t *len)
 //清空缓冲区
 void clean_rebuff(void)
 {
-    memset(uart_buff2, 0, sizeof(uart_buff2));  // 清空缓冲区
-    uart_p2 = 0;  // 重置缓冲区指针
-//    uint16_t i=UART_BUFF_SIZE2+1;
-//    uart_p2 = 0;
-//    while(i)
-//        uart_buff2[--i]=0;
+    memset(uart_buff2, 0, sizeof(uart_buff2));  // 清空缓冲区，将 uart_buff2 缓冲区的所有字节设置为 0
+    uart_p2 = 0;  // 重置缓冲区指针，重置这个指针意味着下一次接收的数据将从缓冲区的起始位置存储。
 }
 
 

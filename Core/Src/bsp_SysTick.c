@@ -69,15 +69,15 @@ int get_tick_count(unsigned long *count)
   * @retval 无
   * @attention  在 SysTick 中断函数 SysTick_Handler()调用
   */
-void TimingDelay_Decrement(void)
+void TimingDelay_Decrement(void)            //递减全局变量 TimingDelay，直到其值为0。
 {
-    if (TimingDelay != 0x00)
+    if (TimingDelay != 0x00)                //检查 TimingDelay 是否不等于 0; 如果 TimingDelay 不为 0，则将其值减 1。
     {
         TimingDelay--;
     }
 }
 
-void TimeStamp_Increment(void)
+void TimeStamp_Increment(void)   //记录系统运行的总时间，以毫秒为单位
 {
     g_ul_ms_ticks++;
 }

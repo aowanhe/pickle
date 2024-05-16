@@ -566,10 +566,6 @@ void BLE_control(void)
             char first_char;
             char second_char[5] = {0};
 
-//            first_char = linebuff[0];  // 读取第一个字符
-//            strncpy(second_char, linebuff + 1, 4);  // 读取接下来的四个字符
-//            second_char[4] = '\0';  // 添加字符串结尾
-
             first_char = redata[0];
             second_char[0] = redata[1];
             second_char[1] = redata[2];
@@ -585,8 +581,7 @@ void BLE_control(void)
                     if (position != -1)
                     {
                         currentSelectPosition = position;
-                        clean_rebuff();
-                        Fixed_control();
+                        Fixedcnt = 1;
                     }
                     else
                     {
@@ -653,14 +648,30 @@ void BLE_control(void)
                         }
                     }
                     break;
+                case '3':
+                    if(strcmp(second_char, "3333") == 0)
+                    {
+                        if(repeat_flag == 1)
+                        {
+                            repeat_flag = 0;
+                            LED5_TOGGLE
+                            __set_FAULTMASK(1);
+                            NVIC_SystemReset();
+                        }
+                        else
+                        {
+                            repeat_flag = 1;
+                        }
+                    }
+                    break;
                 default:
 
                     break;
             }
             /*处理数据后，清空接收蓝牙模块数据的缓冲区*/
             clean_rebuff();
-            Task_Delay[0] = 50;                            //此值每1ms会减1，减到0才可以重新进来这里，所以执行的周期是100ms
-        }
+            Task_Delay[0] = 200;                            //此值每1ms会减1，减到0才可以重新进来这里，所以执行的周期是200ms；
+        }                                                   //增加 Task_Delay 的延时时间，以减少每次检查的频率，从而避免由于频繁检查导致的数据丢失
         BLE_WAKEUP_HIGHT;
     }
 }
@@ -775,20 +786,46 @@ int Fixed_chose(char *second_char)
 
 void Fixed_control(void)
 {
-//        if(1 == Fixedcnt)
-//        {
-//            Fixedcnt = 0;
+        if (Dropping_adc_mean < 400)
+        {
+            HAL_Delay(500);
+            set_motor5_disable();
+        }
+        if (1 == Fixedcnt) {
+            Fixedcnt = 0;
             Position selected_position = all_positions[currentSelectPosition]; // 获取选定的位置数据
             set_pid_target3(&pid3, selected_position.vertical);
-//            set_pid_target4(&pid4, selected_position.horizontal);
-//            set_motor1_enable();
-//            set_motor1_direction(MOTOR_FWD);
-//            set_motor1_speed(selected_position.M1speed);
-//
-//            set_motor2_enable();
-//            set_motor2_direction(MOTOR_REV);
-//            set_motor2_speed(selected_position.M2speed);
-//        }
+            set_pid_target4(&pid4, selected_position.horizontal);
+            set_motor1_enable();
+            set_motor1_direction(MOTOR_FWD);
+            set_motor1_speed(selected_position.M1speed);
+
+            set_motor2_enable();
+            set_motor2_direction(MOTOR_REV);
+            set_motor2_speed(selected_position.M2speed);
+            HAL_Delay(2000);
+/** 两秒过后才打开电机的启动 */
+            set_motor5_direction(MOTOR_REV);
+            set_motor5_speed(3000);
+            set_motor5_enable();
+        }
+
+}
+
+void repeat_function(void)
+{
+    if(repeat_flag == 1)
+    {
+        int loop_count = 0;
+        Fixedcnt = 1;
+        while (loop_count < 3  && Dropping_adc_mean < 400)
+        {  // 这里是一个示例，循环10次
+            Fixedcnt = 1;
+            Fixed_control();  // 调用 Fixed_control 函数
+            HAL_Delay(1000);
+            loop_count++;  // 增加循环计数器
+        }
+    }
 }
 
 void random_control(void)
@@ -892,335 +929,6 @@ void random_control(void)
         }
     }
 }
-
-
-void A1_control(void)
-{
-        cntA1 = 0;
-        set_motor1_enable();                            //A1
-        set_motor1_direction(MOTOR_FWD);
-        set_motor1_speed(1900);
-        set_motor2_enable();
-        set_motor2_direction(MOTOR_REV);
-        set_motor2_speed(1900);
-
-        set_pid_target3(&pid3, 2500);
-        HAL_Delay(2000);
-        set_motor5_direction(MOTOR_REV);
-        set_motor5_speed(3500);
-        set_motor5_enable();
-}
-
-void A2_control(void)
-{
-            cntA2 = 0;
-            set_motor1_enable();                            //A2
-            set_motor1_direction(MOTOR_FWD);
-            set_motor1_speed(2100);
-            set_motor2_enable();
-            set_motor2_direction(MOTOR_REV);
-            set_motor2_speed(2100);
-
-            set_pid_target3(&pid3, 1900);
-            LED2_TOGGLE
-            HAL_Delay(2000);
-            set_motor5_direction(MOTOR_REV);
-            set_motor5_speed(3000);
-            set_motor5_enable();
-}
-
-void A3_control(void)
-{
-        set_motor1_enable();                            //A3
-        set_motor1_direction(MOTOR_FWD);
-        set_motor1_speed(1800);
-        set_motor2_enable();
-        set_motor2_direction(MOTOR_REV);
-        set_motor2_speed(1800);
-
-        set_pid_target3(&pid3, 1738);
-        HAL_Delay(2000);
-        set_motor5_direction(MOTOR_REV);
-        set_motor5_speed(3500);
-        set_motor5_enable();
-}
-
-void A4_control(void)
-{
-
-        set_motor1_enable();                            //A4
-        set_motor1_direction(MOTOR_FWD);
-        set_motor1_speed(1800);
-        set_motor2_enable();
-        set_motor2_direction(MOTOR_REV);
-        set_motor2_speed(1800);
-
-        set_pid_target3(&pid3, 1290);
-        HAL_Delay(2000);
-        set_motor5_direction(MOTOR_REV);
-        set_motor5_speed(3500);
-        set_motor5_enable();
-}
-
-void A5_control(void)
-{
-        set_motor1_enable();                            //A5
-        set_motor1_direction(MOTOR_FWD);
-        set_motor1_speed(1800);
-        set_motor2_enable();
-        set_motor2_direction(MOTOR_REV);
-        set_motor2_speed(1800);
-
-        set_pid_target3(&pid3, 745);
-        LED5_TOGGLE
-        HAL_Delay(2000);
-        set_motor5_direction(MOTOR_REV);
-        set_motor5_speed(3500);
-        set_motor5_enable();
-}
-
-void B1_control(void)
-{
-        set_motor1_enable();
-        set_motor1_direction(MOTOR_FWD);
-        set_motor1_speed(2100);                         //B1
-        set_motor2_enable();
-        set_motor2_direction(MOTOR_REV);
-        set_motor2_speed(2100);
-
-        set_pid_target3(&pid3, 2250);
-}
-
-void B2_control(void)
-{
-        set_motor1_enable();
-        set_motor1_direction(MOTOR_FWD);
-        set_motor1_speed(2100);                         //B2
-        set_motor2_enable();
-        set_motor2_direction(MOTOR_REV);
-        set_motor2_speed(2100);
-
-        set_pid_target3(&pid3, 1900);
-}
-
-void B3_control(void)
-{
-        set_motor1_enable();
-        set_motor1_direction(MOTOR_FWD);
-        set_motor1_speed(2100);                         //B3
-        set_motor2_enable();
-        set_motor2_direction(MOTOR_REV);
-        set_motor2_speed(2100);
-
-        set_pid_target3(&pid3, 1591);
-}
-
-void B4_control(void)
-{
-        set_motor1_enable();
-        set_motor1_direction(MOTOR_FWD);
-        set_motor1_speed(2200);                         //B4
-        set_motor2_enable();
-        set_motor2_direction(MOTOR_REV);
-        set_motor2_speed(2200);
-
-        set_pid_target3(&pid3, 745);
-}
-
-void B5_control(void)
-{
-        set_motor1_enable();
-        set_motor1_direction(MOTOR_FWD);
-        set_motor1_speed(2100);                         //B5
-        set_motor2_enable();
-        set_motor2_direction(MOTOR_REV);
-        set_motor2_speed(2100);
-
-        set_pid_target3(&pid3, 745);
-}
-
-void C1_control(void)
-{
-        set_motor1_enable();
-        set_motor1_direction(MOTOR_FWD);
-        set_motor1_speed(2400);                         //C1
-        set_motor2_enable();
-        set_motor2_direction(MOTOR_REV);
-        set_motor2_speed(2400);
-
-        set_pid_target3(&pid3, 2000);
-}
-
-void C2_control(void)
-{
-        set_motor1_enable();
-        set_motor1_direction(MOTOR_FWD);
-        set_motor1_speed(2400);                         //C2
-        set_motor2_enable();
-        set_motor2_direction(MOTOR_REV);
-        set_motor2_speed(2400);
-
-        set_pid_target3(&pid3, 1750);
-}
-
-void C3_control(void)
-{
-        set_motor1_enable();
-        set_motor1_direction(MOTOR_FWD);
-        set_motor1_speed(2400);                         //C3
-        set_motor2_enable();
-        set_motor2_direction(MOTOR_REV);
-        set_motor2_speed(2400);
-        HAL_Delay(1500);
-
-        set_pid_target3(&pid3, 1580);
-}
-
-void C4_control(void)
-{
-        set_motor1_enable();
-        set_motor1_direction(MOTOR_FWD);
-        set_motor1_speed(2400);                         //C4
-        set_motor2_enable();
-        set_motor2_direction(MOTOR_REV);
-        set_motor2_speed(2400);
-
-        set_pid_target3(&pid3, 1200);
-}
-
-void C5_control(void)
-{
-        set_motor1_enable();
-        set_motor1_direction(MOTOR_FWD);
-        set_motor1_speed(2400);                         //C5
-        set_motor2_enable();
-        set_motor2_direction(MOTOR_REV);
-        set_motor2_speed(2400);
-
-        set_pid_target3(&pid3, 1100);
-}
-
-void D1_control(void)
-{
-    set_motor1_enable();
-    set_motor1_direction(MOTOR_FWD);
-    set_motor1_speed(2400);                         //D1
-    set_motor2_enable();
-    set_motor2_direction(MOTOR_REV);
-    set_motor2_speed(2400);
-
-    set_pid_target3(&pid3, 2000);
-}
-
-void D2_control(void)
-{
-    set_motor1_enable();
-    set_motor1_direction(MOTOR_FWD);
-    set_motor1_speed(2400);                         //D2
-    set_motor2_enable();
-    set_motor2_direction(MOTOR_REV);
-    set_motor2_speed(2400);
-
-    set_pid_target3(&pid3, 1780);
-}
-
-void D3_control(void)
-{
-    set_motor1_enable();
-    set_motor1_direction(MOTOR_FWD);
-    set_motor1_speed(2400);                         //D3
-    set_motor2_enable();
-    set_motor2_direction(MOTOR_REV);
-    set_motor2_speed(2400);
-
-    set_pid_target3(&pid3, 1530);
-}
-
-void D4_control(void)
-{
-    set_motor1_enable();
-    set_motor1_direction(MOTOR_FWD);
-    set_motor1_speed(2400);                         //D4
-    set_motor2_enable();
-    set_motor2_direction(MOTOR_REV);
-    set_motor2_speed(2400);
-
-    set_pid_target3(&pid3, 1300);
-}
-
-void D5_control(void)
-{
-    set_motor1_enable();
-    set_motor1_direction(MOTOR_FWD);
-    set_motor1_speed(2400);                         //D5
-    set_motor2_enable();
-    set_motor2_direction(MOTOR_REV);
-    set_motor2_speed(2400);
-
-    set_pid_target3(&pid3, 1100);
-}
-
-void E1_control(void)
-{
-    set_motor1_enable();
-    set_motor1_direction(MOTOR_FWD);
-    set_motor1_speed(2400);                         //E1
-    set_motor2_enable();
-    set_motor2_direction(MOTOR_REV);
-    set_motor2_speed(2400);
-
-    set_pid_target3(&pid3, 1920);
-}
-
-void E2_control(void)
-{
-    set_motor1_enable();
-    set_motor1_direction(MOTOR_FWD);
-    set_motor1_speed(2400);                         //E2
-    set_motor2_enable();
-    set_motor2_direction(MOTOR_REV);
-    set_motor2_speed(2400);
-
-    set_pid_target3(&pid3, 1720);
-}
-
-void E3_control(void)
-{
-    set_motor1_enable();
-    set_motor1_direction(MOTOR_FWD);
-    set_motor1_speed(2400);                         //E3
-    set_motor2_enable();
-    set_motor2_direction(MOTOR_REV);
-    set_motor2_speed(2400);
-
-    set_pid_target3(&pid3, 1560);
-}
-
-void E4_control(void)
-{
-    set_motor1_enable();
-    set_motor1_direction(MOTOR_FWD);
-    set_motor1_speed(2400);                         //E4
-    set_motor2_enable();
-    set_motor2_direction(MOTOR_REV);
-    set_motor2_speed(2400);
-
-    set_pid_target3(&pid3, 1230);
-}
-
-void E5_control(void)
-{
-    set_motor1_enable();
-    set_motor1_direction(MOTOR_FWD);
-    set_motor1_speed(2400);                         //E5
-    set_motor2_enable();
-    set_motor2_direction(MOTOR_REV);
-    set_motor2_speed(2400);
-
-    set_pid_target3(&pid3, 800);
-}
-
-
 
 void upward_control(void)
 {
@@ -1360,158 +1068,6 @@ void motor5_control(void)
         }
     }
 }
-
-//if(strcmp(second_char, "00A1") == 0)
-//{
-////                        clean_rebuff();
-//LED5_TOGGLE
-//A1_control();
-//}
-//if(strcmp(second_char, "00A2") == 0)
-//{
-////                        clean_rebuff();
-//LED5_TOGGLE
-//A2_control();
-//}
-//if(strcmp(second_char, "00A3") == 0)
-//{
-////                        clean_rebuff();
-//LED5_TOGGLE
-//A3_control();
-//}
-//if(strcmp(second_char, "00A4") == 0)
-//{
-////                        clean_rebuff();
-//LED5_TOGGLE
-//A4_control();
-//}
-//if(strcmp(second_char, "00A5") == 0)
-//{
-////                        clean_rebuff();
-//LED5_TOGGLE
-//A5_control();
-//}
-//if(strcmp(second_char, "00B1") == 0)
-//{
-//clean_rebuff();
-//LED1_TOGGLE
-//B1_control();
-//}
-//if(strcmp(second_char, "00B2") == 0)
-//{
-//clean_rebuff();
-//LED2_TOGGLE
-//B2_control();
-//}
-//if(strcmp(second_char, "00B3") == 0)
-//{
-//clean_rebuff();
-//LED3_TOGGLE
-//B3_control();
-//}
-//if(strcmp(second_char, "00B4") == 0)
-//{
-//clean_rebuff();
-//LED4_TOGGLE
-//B4_control();
-//}
-//if(strcmp(second_char, "00B5") == 0)
-//{
-//clean_rebuff();
-//LED5_TOGGLE
-//B5_control();
-//}
-//if(strcmp(second_char, "00C1") == 0)
-//{
-//clean_rebuff();
-//LED1_TOGGLE
-////                        C1_control();
-//}
-//if(strcmp(second_char, "00C2") == 0)
-//{
-//clean_rebuff();
-//LED2_TOGGLE
-//C2_control();
-//}
-//if(strcmp(second_char, "00C3") == 0)
-//{
-//clean_rebuff();
-//LED3_TOGGLE
-//C3_control();
-//}
-//if(strcmp(second_char, "00C4") == 0)
-//{
-//clean_rebuff();
-//LED4_TOGGLE
-//C4_control();
-//}
-//if(strcmp(second_char, "00C5") == 0)
-//{
-//clean_rebuff();
-//LED5_TOGGLE
-//C5_control();
-//}
-//if(strcmp(second_char, "00D1") == 0)
-//{
-//clean_rebuff();
-//LED1_TOGGLE
-//D1_control();
-//}
-//if(strcmp(second_char, "00D2") == 0)
-//{
-//clean_rebuff();
-//LED2_TOGGLE
-//D2_control();
-//}
-//if(strcmp(second_char, "00D3") == 0)
-//{
-//clean_rebuff();
-//LED3_TOGGLE
-//D3_control();
-//}
-//if(strcmp(second_char, "00D4") == 0)
-//{
-//clean_rebuff();
-//LED4_TOGGLE
-//D4_control();
-//}
-//if(strcmp(second_char, "00D5") == 0)
-//{
-//clean_rebuff();
-//LED5_TOGGLE
-//D5_control();
-//}
-//if(strcmp(second_char, "00E1") == 0)
-//{
-//clean_rebuff();
-//LED1_TOGGLE
-//E1_control();
-//}
-//if(strcmp(second_char, "00E2") == 0)
-//{
-//clean_rebuff();
-//LED2_TOGGLE
-//E2_control();
-//}
-//if(strcmp(second_char, "00E3") == 0)
-//{
-//clean_rebuff();
-//LED3_TOGGLE
-//E3_control();
-//}
-//if(strcmp(second_char, "00E4") == 0)
-//{
-//clean_rebuff();
-//LED4_TOGGLE
-//E4_control();
-//}
-//if(strcmp(second_char, "00E5") == 0)
-//{
-//clean_rebuff();
-//LED5_TOGGLE
-//E5_control();
-//}
-
 
 //            if (first_char == 'a')    //向上
 //            {

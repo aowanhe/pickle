@@ -31,30 +31,8 @@ _Bool right_random_flag = 0;
 _Bool motor5_flag = 0;
 
 uint16_t Fixedcnt = 0;
-//_Bool randomcnt1 = 1;
-//unsigned int Task_Delay[NumOfTask];
-//char linebuff[1024];
 
-//typedef struct {
-//    float horizontal;
-//    float vertical;
-//    float M1speed;
-//    float M2speed;
-//} Position;
-//
-//// 初始化定点数据
-//Position positions[25] = {
-//        {1100, 2500,2000,2000}, {1100, 1900,2000,2000}, {1100, 1738,2000,2000}, {1100, 1290,2000,2000}, {1100, 800,2000,2000},
-//        {1100, 2250,2000,2000}, {1100, 1900,2000,2000}, {1100, 1591,2000,2000}, {1100, 745,2000,2000}, {1100, 789,2000,2000},
-//        {1100, 2000,2000,2000}, {1100, 1750,2000,2000}, {1100, 1580,2000,2000}, {1100, 1200,2000,2000}, {1100, 1000,2000,2000},
-//        {1100, 2100,2000,2000}, {1100, 1780,2000,2000}, {1100, 1530,2000,2000}, {1100, 1300,2000,2000}, {1100, 1200,2000,2000},
-//        {1100, 1920,2000,2000}, {1100, 1720,2000,2000}, {1100, 1560,2000,2000}, {1100, 1230,2000,2000}, {1100, 800,2000,2000}
-//};
-//
-//// 函数来生成指定范围内的随机数
-//int generate_random_position() {
-//    return rand() % 25; // 返回0到24之间的随机数
-//}
+uint16_t repeat_flag = 0;
 
 /**
   * @brief  The application entry point.
@@ -103,8 +81,9 @@ int main(void)
         Key_control();
         Knob_control();
         BLE_control();
-
+        Fixed_control();
         random_control();
+//        repeat_function();
     }
 }
 

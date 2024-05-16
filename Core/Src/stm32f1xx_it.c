@@ -201,7 +201,7 @@ void SysTick_Handler(void)
   /* USER CODE BEGIN SysTick_IRQn 0 */
 
   /* USER CODE END SysTick_IRQn 0 */
-  HAL_IncTick();
+  HAL_IncTick();                       //这行代码调用了 HAL_IncTick 函数，通常用于增加系统滴答计数器。在HAL库中，这个函数用于跟踪系统时间，通常每1毫秒递增一次。
   /* USER CODE BEGIN SysTick_IRQn 1 */
     unsigned char i;
     TimingDelay_Decrement();
