@@ -132,6 +132,7 @@ void BLE_control(void);
 void random_control(void);
 void Fixed_control(void);
 int Fixed_chose(char *second_char);
+int repeat_chose(char *second_char);
 
 void repeat_function(void);
 

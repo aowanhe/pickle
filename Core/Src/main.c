@@ -30,6 +30,7 @@ _Bool right_random_flag = 0;
 
 _Bool motor5_flag = 0;
 
+uint16_t Fixed_flag = 0;
 uint16_t Fixedcnt = 0;
 
 uint16_t repeat_flag = 0;
@@ -81,9 +82,15 @@ int main(void)
         Key_control();
         Knob_control();
         BLE_control();
-        Fixed_control();
+        if(Fixed_flag == 1)
+        {
+            Fixed_control();
+        }
         random_control();
-//        repeat_function();
+        if(repeat_flag == 1)
+        {
+            repeat_function();
+        }
     }
 }
 

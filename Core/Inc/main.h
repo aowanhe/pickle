@@ -44,6 +44,7 @@ extern _Bool right_random_flag;
 
 extern _Bool motor5_flag;
 
+extern uint16_t Fixed_flag;
 extern uint16_t Fixedcnt;
 
 extern uint16_t repeat_flag;

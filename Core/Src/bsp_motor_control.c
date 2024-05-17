@@ -35,42 +35,12 @@ uint8_t     is_motor5_en = 0;            			// 电机5使能
 unsigned int Task_Delay[NumOfTask];
 char linebuff[1024];
 
-uint16_t cntA1 = 1;
-uint16_t cntA2 = 1;
-uint16_t cntA3 = 1;
-uint16_t cntA4 = 1;
-uint16_t cntA5 = 1;
-
-uint16_t cntB1 = 1;
-uint16_t cntB2 = 1;
-uint16_t cntB3 = 1;
-uint16_t cntB4 = 1;
-uint16_t cntB5 = 1;
-
-uint16_t cntC1 = 1;
-uint16_t cntC2 = 1;
-uint16_t cntC3 = 1;
-uint16_t cntC4 = 1;
-uint16_t cntC5 = 1;
-
-uint16_t cntD1 = 1;
-uint16_t cntD2 = 1;
-uint16_t cntD3 = 1;
-uint16_t cntD4 = 1;
-uint16_t cntD5 = 1;
-
-uint16_t cntE1 = 1;
-uint16_t cntE2 = 1;
-uint16_t cntE3 = 1;
-uint16_t cntE4 = 1;
-uint16_t cntE5 = 1;
-
-
-
 uint16_t randomcnt1 = 1;
 uint16_t randomcnt2 = 1;
 uint16_t randomcnt3 = 1;
 uint16_t randomcnt5 = 1;
+
+uint16_t sensor_triggered = 0;
 
 typedef struct {
     float horizontal;//仰角pid4
@@ -548,6 +518,7 @@ void motor4_pid_control(void)
 }
 
 int  currentSelectPosition = -1;
+int  currentSelectrepeat_count = -1;
 
 void BLE_control(void)
 {
@@ -581,6 +552,7 @@ void BLE_control(void)
                     if (position != -1)
                     {
                         currentSelectPosition = position;
+                        Fixed_flag = 1;
                         Fixedcnt = 1;
                     }
                     else
@@ -649,7 +621,20 @@ void BLE_control(void)
                     }
                     break;
                 case '3':
-                    if(strcmp(second_char, "3333") == 0)
+                {
+                    int repeat_count = repeat_chose(second_char);
+                    if (repeat_count != -1)
+                    {
+                        currentSelectrepeat_count = repeat_count;
+                        repeat_flag = 1;
+                    }
+                    else
+                    {
+
+                    }
+                    break;
+                }
+/*                    if(strcmp(second_char, "3333") == 0)
                     {
                         if(repeat_flag == 1)
                         {
@@ -663,7 +648,7 @@ void BLE_control(void)
                             repeat_flag = 1;
                         }
                     }
-                    break;
+                    break;*/
                 default:
 
                     break;
@@ -678,23 +663,23 @@ void BLE_control(void)
 
 int Fixed_chose(char *second_char)
 {
-    if (strcmp(second_char, "11A1") == 0)
+    if (strcmp(second_char, "00A1") == 0)
     {
         return 0;
     }
-    else if (strcmp(second_char, "11A2") == 0)
+    else if (strcmp(second_char, "00A2") == 0)
     {
         return 5;
     }
-    else if (strcmp(second_char, "11A3") == 0)
+    else if (strcmp(second_char, "00A3") == 0)
     {
         return 10;
     }
-    else if (strcmp(second_char, "11A4") == 0)
+    else if (strcmp(second_char, "00A4") == 0)
     {
         return 15;
     }
-    else if (strcmp(second_char, "11A5") == 0)
+    else if (strcmp(second_char, "00A5") == 0)
     {
         return 20;
     }
@@ -784,48 +769,123 @@ int Fixed_chose(char *second_char)
     }
 }
 
+int repeat_chose(char *second_char)
+{
+    if (strcmp(second_char, "1111") == 0)
+    {
+        return 1;
+    }
+    else if (strcmp(second_char, "2222") == 0)
+    {
+        return 2;
+    }
+    else if (strcmp(second_char, "3333") == 0)
+    {
+        return 3;
+    }
+    else if (strcmp(second_char, "4444") == 0)
+    {
+        return 4;
+    }
+    else if (strcmp(second_char, "5555") == 0)
+    {
+        return 5;
+    }
+    else
+    {
+        return  -1;
+    }
+}
+
+//void Fixed_control(void)
+//{
+//        if (Dropping_adc_mean < 400)
+//        {
+//            HAL_Delay(500);
+//            set_motor5_disable();
+//        }
+//        if (1 == Fixedcnt) {
+//            Fixedcnt = 0;
+//            Position selected_position = all_positions[currentSelectPosition]; // 获取选定的位置数据
+//            set_pid_target3(&pid3, selected_position.vertical);
+////            set_pid_target4(&pid4, selected_position.horizontal);
+////            set_motor1_enable();
+////            set_motor1_direction(MOTOR_FWD);
+////            set_motor1_speed(selected_position.M1speed);
+////
+////            set_motor2_enable();
+////            set_motor2_direction(MOTOR_REV);
+////            set_motor2_speed(selected_position.M2speed);
+//            HAL_Delay(2000);
+///** 两秒过后才打开电机的启动 */
+//            set_motor5_direction(MOTOR_REV);
+//            set_motor5_speed(3000);
+//            set_motor5_enable();
+//        }
+//}
+
+
 void Fixed_control(void)
 {
-        if (Dropping_adc_mean < 400)
+    static uint8_t state = 0;
+    if (Fixedcnt == 1)
+    {
+        switch (state)
         {
-            HAL_Delay(500);
-            set_motor5_disable();
+            case 0: // 初始化并启动 M1、M2、M3、M4
+            {
+                Position selected_position = all_positions[currentSelectPosition];
+                set_pid_target3(&pid3, selected_position.vertical);
+//                set_pid_target4(&pid4, selected_position.horizontal);
+//                set_motor1_enable();
+//                set_motor1_direction(MOTOR_FWD);
+//                set_motor1_speed(selected_position.M1speed);
+//
+//                set_motor2_enable();
+//                set_motor2_direction(MOTOR_REV);
+//                set_motor2_speed(selected_position.M2speed);
+                set_motor5_direction(MOTOR_REV);
+                set_motor5_speed(3000);
+                HAL_Delay(5000);    /** 五秒过后才打开电机的启动 */
+                set_motor5_enable();
+                state = 1;
+                break;
+            }
+            case 1:
+            {
+                if (Dropping_adc_mean < 400)
+                {
+                    // 关闭电机
+                    HAL_Delay(500);
+                    set_motor5_disable();
+                    state = 0; // 重置状态机
+                    Fixedcnt = 0; // 重置控制标志位
+                    Fixed_flag = 0;
+//                    sensor_triggered = 1;
+                }
+                break;
+            }
         }
-        if (1 == Fixedcnt) {
-            Fixedcnt = 0;
-            Position selected_position = all_positions[currentSelectPosition]; // 获取选定的位置数据
-            set_pid_target3(&pid3, selected_position.vertical);
-            set_pid_target4(&pid4, selected_position.horizontal);
-            set_motor1_enable();
-            set_motor1_direction(MOTOR_FWD);
-            set_motor1_speed(selected_position.M1speed);
-
-            set_motor2_enable();
-            set_motor2_direction(MOTOR_REV);
-            set_motor2_speed(selected_position.M2speed);
-            HAL_Delay(2000);
-/** 两秒过后才打开电机的启动 */
-            set_motor5_direction(MOTOR_REV);
-            set_motor5_speed(3000);
-            set_motor5_enable();
-        }
-
+    }
 }
 
 void repeat_function(void)
 {
-    if(repeat_flag == 1)
+    int loop_count = 0;
+    int repeat_count_comparison_value = 0;
+    repeat_count_comparison_value = currentSelectrepeat_count;
+    while (loop_count < repeat_count_comparison_value)             // 这里是一个示例，循环3次
     {
-        int loop_count = 0;
+//        sensor_triggered = 0;
         Fixedcnt = 1;
-        while (loop_count < 3  && Dropping_adc_mean < 400)
-        {  // 这里是一个示例，循环10次
-            Fixedcnt = 1;
-            Fixed_control();  // 调用 Fixed_control 函数
-            HAL_Delay(1000);
-            loop_count++;  // 增加循环计数器
+        // 等待 Fixed_control 完成其任务
+        while (Fixedcnt == 1)
+        {
+            Fixed_control(); // 持续调用 Fixed_control，直到其完成任务并重置 Fixedcnt
         }
+        loop_count++;  // 增加循环计数器1
     }
+    repeat_flag = 0;
 }
 
 void random_control(void)
