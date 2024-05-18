@@ -49,6 +49,9 @@ extern uint16_t Fixedcnt;
 
 extern uint16_t repeat_flag;
 
+extern uint16_t freq_flag;
+
+
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
 

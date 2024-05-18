@@ -520,14 +520,17 @@ void motor4_pid_control(void)
 int  currentSelectPosition = -1;
 int  currentSelectrepeat_count = -1;
 
+int  currentSelectmotor5_speed = 3000;
+int  motor5_speed = 3000;
+
 void BLE_control(void)
 {
-    char* redata;
-    uint16_t len;
-    if (Task_Delay[0] == 0 && IS_BLE_CONNECTED())
+    char* redata;       //定义读数据的指针
+    uint16_t len;       //定义数据大小
+    if (Task_Delay[0] == 0 && IS_BLE_CONNECTED())      //定时并且判断INT引脚电平是否发生变化
     {
-        BLE_WAKEUP_LOW;
-        uint16_t linelen;
+        BLE_WAKEUP_LOW;        //蓝牙wakeup引脚置0，启动蓝牙
+        uint16_t linelen;     //定义数据的长度
         /*获取数据*/
         redata = get_rebuff(&len);
         linelen = get_line(linebuff, redata, len);
@@ -544,16 +547,16 @@ void BLE_control(void)
             second_char[3] = redata[4];
             second_char[4] = '\0';  // 添加字符串结尾
 
-            switch (first_char)
+            switch (first_char)   //主模式区分
             {
-                case '1':
+                case '1':        //定点模式
                 {
-                    int position = Fixed_chose(second_char);
+                    int position = Fixed_chose(second_char);     //判断点位
                     if (position != -1)
                     {
                         currentSelectPosition = position;
-                        Fixed_flag = 1;
-                        Fixedcnt = 1;
+                        Fixed_flag = 1;                        //作为主程序中触发Fixed_control的标志位
+                        Fixedcnt = 1;                          //作为Fixed_control首次触发信号
                     }
                     else
                     {
@@ -620,9 +623,9 @@ void BLE_control(void)
                         }
                     }
                     break;
-                case '3':
+                case 'A':
                 {
-                    int repeat_count = repeat_chose(second_char);
+                    int repeat_count = repeat_chose(second_char);   //比较second_char,返回对应的重复次数
                     if (repeat_count != -1)
                     {
                         currentSelectrepeat_count = repeat_count;
@@ -634,21 +637,20 @@ void BLE_control(void)
                     }
                     break;
                 }
-/*                    if(strcmp(second_char, "3333") == 0)
-                    {
-                        if(repeat_flag == 1)
-                        {
-                            repeat_flag = 0;
-                            LED5_TOGGLE
-                            __set_FAULTMASK(1);
-                            NVIC_SystemReset();
-                        }
-                        else
-                        {
-                            repeat_flag = 1;
-                        }
-                    }
-                    break;*/
+                case 'B':
+                {
+//                    int speed_count = freq_chose(second_char);   //比较second_char,返回对应的重复次数
+//                    if (speed_count != -1)
+//                    {
+                        currentSelectmotor5_speed = freq_chose(second_char);    //比较second_char,返回对应的M5速度
+                        freq_flag = 1;
+//                    }
+//                    else
+//                    {
+//
+//                    }
+                    break;
+                }
                 default:
 
                     break;
@@ -661,7 +663,7 @@ void BLE_control(void)
     }
 }
 
-int Fixed_chose(char *second_char)
+int Fixed_chose(char *second_char)       //根据second_char的判断，返回对应的值，作为数组的信号，确定对应的点位
 {
     if (strcmp(second_char, "00A1") == 0)
     {
@@ -797,33 +799,47 @@ int repeat_chose(char *second_char)
     }
 }
 
-//void Fixed_control(void)
-//{
-//        if (Dropping_adc_mean < 400)
-//        {
-//            HAL_Delay(500);
-//            set_motor5_disable();
-//        }
-//        if (1 == Fixedcnt) {
-//            Fixedcnt = 0;
-//            Position selected_position = all_positions[currentSelectPosition]; // 获取选定的位置数据
-//            set_pid_target3(&pid3, selected_position.vertical);
-////            set_pid_target4(&pid4, selected_position.horizontal);
-////            set_motor1_enable();
-////            set_motor1_direction(MOTOR_FWD);
-////            set_motor1_speed(selected_position.M1speed);
-////
-////            set_motor2_enable();
-////            set_motor2_direction(MOTOR_REV);
-////            set_motor2_speed(selected_position.M2speed);
-//            HAL_Delay(2000);
-///** 两秒过后才打开电机的启动 */
-//            set_motor5_direction(MOTOR_REV);
-//            set_motor5_speed(3000);
-//            set_motor5_enable();
-//        }
-//}
+int freq_chose(char *second_char)           //频率选择函数
+{
+    if (strcmp(second_char, "1111") == 0)
+    {
+        return 3500;
+    }
+    else if (strcmp(second_char, "2222") == 0)
+    {
+        return 4000;
+    }
+    else if (strcmp(second_char, "3333") == 0)
+    {
+        return 4500;
+    }
+    else if (strcmp(second_char, "4444") == 0)
+    {
+        return 5000;
+    }
+    else if (strcmp(second_char, "5555") == 0)
+    {
+        return 5500;
+    }
+    else
+    {
+        return  -1;
+    }
+}
 
+void motor1_motor2_motor3_motor4_control(void)
+{
+    Position selected_position = all_positions[currentSelectPosition];
+    set_pid_target3(&pid3, selected_position.vertical);
+//                set_pid_target4(&pid4, selected_position.horizontal);
+//                set_motor1_enable();
+//                set_motor1_direction(MOTOR_FWD);
+//                set_motor1_speed(selected_position.M1speed);
+//
+//                set_motor2_enable();
+//                set_motor2_direction(MOTOR_REV);
+//                set_motor2_speed(selected_position.M2speed);
+}
 
 void Fixed_control(void)
 {
@@ -834,18 +850,10 @@ void Fixed_control(void)
         {
             case 0: // 初始化并启动 M1、M2、M3、M4
             {
-                Position selected_position = all_positions[currentSelectPosition];
-                set_pid_target3(&pid3, selected_position.vertical);
-//                set_pid_target4(&pid4, selected_position.horizontal);
-//                set_motor1_enable();
-//                set_motor1_direction(MOTOR_FWD);
-//                set_motor1_speed(selected_position.M1speed);
-//
-//                set_motor2_enable();
-//                set_motor2_direction(MOTOR_REV);
-//                set_motor2_speed(selected_position.M2speed);
+                motor1_motor2_motor3_motor4_control();  //控制M1、M2、M3、M4
+                freq_function();                        //判断M5速度
                 set_motor5_direction(MOTOR_REV);
-                set_motor5_speed(3000);
+                set_motor5_speed(motor5_speed);
                 HAL_Delay(5000);    /** 五秒过后才打开电机的启动 */
                 set_motor5_enable();
                 state = 1;
@@ -861,7 +869,7 @@ void Fixed_control(void)
                     state = 0; // 重置状态机
                     Fixedcnt = 0; // 重置控制标志位
                     Fixed_flag = 0;
-//                    sensor_triggered = 1;
+                    sensor_triggered = 1;
                 }
                 break;
             }
@@ -873,19 +881,31 @@ void repeat_function(void)
 {
     int loop_count = 0;
     int repeat_count_comparison_value = 0;
-    repeat_count_comparison_value = currentSelectrepeat_count;
-    while (loop_count < repeat_count_comparison_value)             // 这里是一个示例，循环3次
+    repeat_count_comparison_value = currentSelectrepeat_count;       //传递需要重复的次数
+    while (loop_count < repeat_count_comparison_value)              // 这里是一个示例，循环3次
     {
-//        sensor_triggered = 0;
+        sensor_triggered = 0;
         Fixedcnt = 1;
         // 等待 Fixed_control 完成其任务
-        while (Fixedcnt == 1)
+        while (sensor_triggered == 0)
         {
-            Fixed_control(); // 持续调用 Fixed_control，直到其完成任务并重置 Fixedcnt
+            Fixed_control();                                       // 持续调用 Fixed_control，直到其完成任务并重置 Fixedcnt
         }
         loop_count++;  // 增加循环计数器1
     }
     repeat_flag = 0;
+}
+
+void freq_function(void)
+{
+    if(freq_flag == 1)
+    {
+        motor5_speed = currentSelectmotor5_speed;
+    }
+    else
+    {
+        motor5_speed = 3000;
+    }
 }
 
 void random_control(void)

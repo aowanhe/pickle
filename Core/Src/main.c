@@ -35,6 +35,8 @@ uint16_t Fixedcnt = 0;
 
 uint16_t repeat_flag = 0;
 
+uint16_t freq_flag = 0;
+
 /**
   * @brief  The application entry point.
   * @retval int
@@ -91,6 +93,11 @@ int main(void)
         {
             repeat_function();
         }
+
+//        if(freq_flag == 1)
+//        {
+//
+//        }
     }
 }
 

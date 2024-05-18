@@ -129,11 +129,16 @@ void motor5_control(void);
 
 void motor_reset(void);
 void BLE_control(void);
-void random_control(void);
+
+void motor1_motor2_motor3_motor4_control(void);
 void Fixed_control(void);
+void random_control(void);
+
 int Fixed_chose(char *second_char);
 int repeat_chose(char *second_char);
+int freq_chose(char *second_char);
 
+void freq_function(void);
 void repeat_function(void);
 
 #endif /* __LED_H */
