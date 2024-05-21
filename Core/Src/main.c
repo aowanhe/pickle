@@ -88,12 +88,11 @@ int main(void)
         {
             Fixed_control();
         }
-        random_control();
         if(repeat_flag == 1)
         {
             repeat_function();
         }
-
+        random_control();
 //        if(freq_flag == 1)
 //        {
 //

@@ -571,8 +571,6 @@ void BLE_control(void)
                         if(all_random_flag == 1)
                         {
                             all_random_flag = 0;
-//                            set_motor5_disable();
-//                            LED5_TOGGLE
                             LED5_TOGGLE
                             __set_FAULTMASK(1);
                             NVIC_SystemReset();
@@ -590,8 +588,6 @@ void BLE_control(void)
                         if(left_random_flag == 1)
                         {
                             left_random_flag = 0;
-//                            set_motor5_disable();
-//                            LED4_TOGGLE
                             LED5_TOGGLE
                             __set_FAULTMASK(1);
                             NVIC_SystemReset();
@@ -609,8 +605,6 @@ void BLE_control(void)
                         if(right_random_flag == 1)
                         {
                             right_random_flag = 0;
-//                            set_motor5_disable();
-//                            LED4_TOGGLE
                             LED5_TOGGLE
                             __set_FAULTMASK(1);
                             NVIC_SystemReset();
@@ -639,16 +633,9 @@ void BLE_control(void)
                 }
                 case 'B':
                 {
-//                    int speed_count = freq_chose(second_char);   //比较second_char,返回对应的重复次数
-//                    if (speed_count != -1)
-//                    {
-                        currentSelectmotor5_speed = freq_chose(second_char);    //比较second_char,返回对应的M5速度
-                        freq_flag = 1;
-//                    }
-//                    else
-//                    {
-//
-//                    }
+                    LED3_TOGGLE
+                    currentSelectmotor5_speed = freq_chose(second_char);    //比较second_char,返回对应的M5速度
+                    freq_flag = 1;
                     break;
                 }
                 default:
@@ -685,83 +672,83 @@ int Fixed_chose(char *second_char)       //根据second_char的判断，返回�
     {
         return 20;
     }
-    else if (strcmp(second_char, "11B1") == 0)
+    else if (strcmp(second_char, "00B1") == 0)
     {
         return 1;
     }
-    else if (strcmp(second_char, "11B2") == 0)
+    else if (strcmp(second_char, "00B2") == 0)
     {
         return 6;
     }
-    else if (strcmp(second_char, "11B3") == 0)
+    else if (strcmp(second_char, "00B3") == 0)
     {
         return 11;
     }
-    else if (strcmp(second_char, "11B4") == 0)
+    else if (strcmp(second_char, "00B4") == 0)
     {
         return 16;
     }
-    else if (strcmp(second_char, "11B5") == 0)
+    else if (strcmp(second_char, "00B5") == 0)
     {
         return 21;
     }
-    else if (strcmp(second_char, "11C1") == 0)
+    else if (strcmp(second_char, "00C1") == 0)
     {
         return 2;
     }
-    else if (strcmp(second_char, "11C2") == 0)
+    else if (strcmp(second_char, "00C2") == 0)
     {
         return 7;
     }
-    else if (strcmp(second_char, "11C3") == 0)
+    else if (strcmp(second_char, "00C3") == 0)
     {
         return 12;
     }
-    else if (strcmp(second_char, "11C4") == 0)
+    else if (strcmp(second_char, "00C4") == 0)
     {
         return 17;
     }
-    else if (strcmp(second_char, "11C5") == 0)
+    else if (strcmp(second_char, "00C5") == 0)
     {
         return 22;
     }
-    else if (strcmp(second_char, "11D1") == 0)
+    else if (strcmp(second_char, "00D1") == 0)
     {
         return 3;
     }
-    else if (strcmp(second_char, "11D2") == 0)
+    else if (strcmp(second_char, "00D2") == 0)
     {
         return 8;
     }
-    else if (strcmp(second_char, "11D3") == 0)
+    else if (strcmp(second_char, "00D3") == 0)
     {
         return 13;
     }
-    else if (strcmp(second_char, "11D4") == 0)
+    else if (strcmp(second_char, "00D4") == 0)
     {
         return 18;
     }
-    else if (strcmp(second_char, "11D5") == 0)
+    else if (strcmp(second_char, "00D5") == 0)
     {
         return 23;
     }
-    else if (strcmp(second_char, "11E1") == 0)
+    else if (strcmp(second_char, "00E1") == 0)
     {
         return 4;
     }
-    else if (strcmp(second_char, "11E2") == 0)
+    else if (strcmp(second_char, "00E2") == 0)
     {
         return 9;
     }
-    else if (strcmp(second_char, "11E3") == 0)
+    else if (strcmp(second_char, "00E3") == 0)
     {
         return 14;
     }
-    else if (strcmp(second_char, "11E4") == 0)
+    else if (strcmp(second_char, "00E4") == 0)
     {
         return 19;
     }
-    else if (strcmp(second_char, "11E5") == 0)
+    else if (strcmp(second_char, "00E5") == 0)
     {
         return 24;
     }
@@ -773,25 +760,53 @@ int Fixed_chose(char *second_char)       //根据second_char的判断，返回�
 
 int repeat_chose(char *second_char)
 {
-    if (strcmp(second_char, "1111") == 0)
+    if (strcmp(second_char, "0000") == 0)
+    {
+        return 0;
+    }
+    else if (strcmp(second_char, "0010") == 0)
     {
         return 1;
     }
-    else if (strcmp(second_char, "2222") == 0)
+    else if (strcmp(second_char, "0020") == 0)
     {
         return 2;
     }
-    else if (strcmp(second_char, "3333") == 0)
+    else if (strcmp(second_char, "0030") == 0)
     {
         return 3;
     }
-    else if (strcmp(second_char, "4444") == 0)
+    else if (strcmp(second_char, "0040") == 0)
     {
         return 4;
     }
-    else if (strcmp(second_char, "5555") == 0)
+    else if (strcmp(second_char, "0050") == 0)
     {
         return 5;
+    }
+    else if (strcmp(second_char, "0060") == 0)
+    {
+        return 6;
+    }
+    else if (strcmp(second_char, "0070") == 0)
+    {
+        return 7;
+    }
+    else if (strcmp(second_char, "0080") == 0)
+    {
+        return 8;
+    }
+    else if (strcmp(second_char, "0090") == 0)
+    {
+        return 9;
+    }
+    else if (strcmp(second_char, "0100") == 0)
+    {
+        return 10;
+    }
+    else if (strcmp(second_char, "9999") == 0)
+    {
+        return 99;
     }
     else
     {
@@ -801,23 +816,23 @@ int repeat_chose(char *second_char)
 
 int freq_chose(char *second_char)           //频率选择函数
 {
-    if (strcmp(second_char, "1111") == 0)
+    if (strcmp(second_char, "0001") == 0)
     {
         return 3500;
     }
-    else if (strcmp(second_char, "2222") == 0)
+    else if (strcmp(second_char, "0002") == 0)
     {
         return 4000;
     }
-    else if (strcmp(second_char, "3333") == 0)
+    else if (strcmp(second_char, "0003") == 0)
     {
         return 4500;
     }
-    else if (strcmp(second_char, "4444") == 0)
+    else if (strcmp(second_char, "0004") == 0)
     {
         return 5000;
     }
-    else if (strcmp(second_char, "5555") == 0)
+    else if (strcmp(second_char, "0005") == 0)
     {
         return 5500;
     }
@@ -851,7 +866,7 @@ void Fixed_control(void)
             case 0: // 初始化并启动 M1、M2、M3、M4
             {
                 motor1_motor2_motor3_motor4_control();  //控制M1、M2、M3、M4
-                freq_function();                        //判断M5速度
+                freq_function();                  // 每次 Fixed_control 调用前更新频率参数
                 set_motor5_direction(MOTOR_REV);
                 set_motor5_speed(motor5_speed);
                 HAL_Delay(5000);    /** 五秒过后才打开电机的启动 */
@@ -882,16 +897,17 @@ void repeat_function(void)
     int loop_count = 0;
     int repeat_count_comparison_value = 0;
     repeat_count_comparison_value = currentSelectrepeat_count;       //传递需要重复的次数
+
     while (loop_count < repeat_count_comparison_value)              // 这里是一个示例，循环3次
     {
         sensor_triggered = 0;
         Fixedcnt = 1;
         // 等待 Fixed_control 完成其任务
-        while (sensor_triggered == 0)
+        while (sensor_triggered == 0)         //当sensor_triggered = 1的时候,即有球落下触发传感器，跳出循环
         {
-            Fixed_control();                                       // 持续调用 Fixed_control，直到其完成任务并重置 Fixedcnt
+            Fixed_control();                 // 持续调用 Fixed_control，直到其完成任务并重置 Fixedcnt
         }
-        loop_count++;  // 增加循环计数器1
+        loop_count++;  // 有球落下后，循环计数器自增1
     }
     repeat_flag = 0;
 }
@@ -900,7 +916,9 @@ void freq_function(void)
 {
     if(freq_flag == 1)
     {
+        LED3_TOGGLE
         motor5_speed = currentSelectmotor5_speed;
+        freq_flag = 0;
     }
     else
     {
