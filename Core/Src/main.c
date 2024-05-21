@@ -84,19 +84,10 @@ int main(void)
         Key_control();
         Knob_control();
         BLE_control();
-        if(Fixed_flag == 1)
-        {
-            Fixed_control();
-        }
         if(repeat_flag == 1)
         {
             repeat_function();
         }
-        random_control();
-//        if(freq_flag == 1)
-//        {
-//
-//        }
     }
 }
 

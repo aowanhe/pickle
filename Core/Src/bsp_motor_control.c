@@ -7,12 +7,10 @@
 #include "protocol.h"
 #include "bsp_tim.h"
 #include <math.h>
-#include <stdlib.h>
 #include "bsp_hc05.h"
 #include "bsp_usart_blt.h"
-#include <string.h>
-
-
+#include <string.h>     //提供了一系列操作字符串的函数和宏定义，例如字符串的复制、连接、比较等。常用函数包括 strcpy()、strcat()、strcmp() 等
+#include <stdlib.h>     //包含了一些常用的函数原型，用于内存分配、类型转换、随机数生成等。常用函数包括 malloc()、free()、atoi() 等。
 
 motor_dir_t MOTOR1_direction  = MOTOR_REV;       // 记录方向
 motor_dir_t MOTOR2_direction  = MOTOR_FWD;       // 记录方向
@@ -520,8 +518,7 @@ void motor4_pid_control(void)
 int  currentSelectPosition = -1;
 int  currentSelectrepeat_count = -1;
 
-int  currentSelectmotor5_speed = 3000;
-int  motor5_speed = 3000;
+int currentSelectmotor5_speed = 3000;
 
 void BLE_control(void)
 {
@@ -532,223 +529,260 @@ void BLE_control(void)
         BLE_WAKEUP_LOW;        //蓝牙wakeup引脚置0，启动蓝牙
         uint16_t linelen;     //定义数据的长度
         /*获取数据*/
-        redata = get_rebuff(&len);
-        linelen = get_line(linebuff, redata, len);
+        redata = get_rebuff(&len);        //把蓝牙数据读取到redata
+        linelen = get_line(linebuff, redata, len);  //计算接收到的数据的长度
         /*检查数据是否有更新*/
         if (linelen < 200 && linelen != 0)
         {
-            char first_char;
-            char second_char[5] = {0};
+            // 解析命令
+            Command cmd = parse_command(redata);
 
-            first_char = redata[0];
-            second_char[0] = redata[1];
-            second_char[1] = redata[2];
-            second_char[2] = redata[3];
-            second_char[3] = redata[4];
-            second_char[4] = '\0';  // 添加字符串结尾
+            // 执行命令
+            execute_command(&cmd);
 
-            switch (first_char)   //主模式区分
-            {
-                case '1':        //定点模式
-                {
-                    int position = Fixed_chose(second_char);     //判断点位
-                    if (position != -1)
-                    {
-                        currentSelectPosition = position;
-                        Fixed_flag = 1;                        //作为主程序中触发Fixed_control的标志位
-                        Fixedcnt = 1;                          //作为Fixed_control首次触发信号
-                    }
-                    else
-                    {
-
-                    }
-                    break;
-                }
-                case '2':
-                    if(strcmp(second_char, "00aa") == 0)
-                    {
-                        clean_rebuff();
-                        if(all_random_flag == 1)
-                        {
-                            all_random_flag = 0;
-                            LED5_TOGGLE
-                            __set_FAULTMASK(1);
-                            NVIC_SystemReset();
-                        }
-                        else
-                        {
-                            all_random_flag = 1;
-                            randomcnt1 = 1;
-                            LED4_TOGGLE
-                        }
-                    }
-                    if(strcmp(second_char, "bb") == 0)
-                    {
-                        clean_rebuff();
-                        if(left_random_flag == 1)
-                        {
-                            left_random_flag = 0;
-                            LED5_TOGGLE
-                            __set_FAULTMASK(1);
-                            NVIC_SystemReset();
-                        }
-                        else
-                        {
-                            left_random_flag = 1;
-                            randomcnt2 = 1;
-                            LED4_TOGGLE
-                        }
-                    }
-                    if(strcmp(second_char, "cc") == 0)
-                    {
-                        clean_rebuff();
-                        if(right_random_flag == 1)
-                        {
-                            right_random_flag = 0;
-                            LED5_TOGGLE
-                            __set_FAULTMASK(1);
-                            NVIC_SystemReset();
-                        }
-                        else
-                        {
-                            right_random_flag = 1;
-                            randomcnt3 = 1;
-                            LED4_TOGGLE
-                        }
-                    }
-                    break;
-                case 'A':
-                {
-                    int repeat_count = repeat_chose(second_char);   //比较second_char,返回对应的重复次数
-                    if (repeat_count != -1)
-                    {
-                        currentSelectrepeat_count = repeat_count;
-                        repeat_flag = 1;
-                    }
-                    else
-                    {
-
-                    }
-                    break;
-                }
-                case 'B':
-                {
-                    LED3_TOGGLE
-                    currentSelectmotor5_speed = freq_chose(second_char);    //比较second_char,返回对应的M5速度
-                    freq_flag = 1;
-                    break;
-                }
-                default:
-
-                    break;
-            }
-            /*处理数据后，清空接收蓝牙模块数据的缓冲区*/
+            // 处理数据后，清空接收蓝牙模块数据的缓冲区
             clean_rebuff();
-            Task_Delay[0] = 200;                            //此值每1ms会减1，减到0才可以重新进来这里，所以执行的周期是200ms；
-        }                                                   //增加 Task_Delay 的延时时间，以减少每次检查的频率，从而避免由于频繁检查导致的数据丢失
+            // 此值每 1ms 会减 1，减到 0 才可以重新进来这里，所以执行的周期是 200ms
+            Task_Delay[0] = 200;
+        }
         BLE_WAKEUP_HIGHT;
     }
 }
 
-int Fixed_chose(char *second_char)       //根据second_char的判断，返回对应的值，作为数组的信号，确定对应的点位
+
+
+Command parse_command(const char* data)  //把接收到的蓝牙数据进行解析
 {
-    if (strcmp(second_char, "00A1") == 0)
+    Command cmd = {0};  // 初始化结构体为零
+    // 复制数据以避免破坏原始数据
+    char temp_data[100];
+    strncpy(temp_data, data, sizeof(temp_data) - 1);
+    temp_data[sizeof(temp_data) - 1] = '\0';  // 确保字符串以 '\0' 结尾
+
+    // 跳过模式部分并分割字符串
+    char* token = strtok(temp_data, "-");  //将一个字符串分割成一系列的标记（tokens），每个标记之间由指定的分隔符隔开。返回指向被分割的第一个标记的指针。如果没有更多的标记，则返回 NULL。
+    int token_count = 0;
+
+    while (token != NULL)
+    {
+        switch (token_count)
+        {
+            case 0:
+                // 提取模式，直接使用字符
+                cmd.mode = token[0];
+                break;
+            case 1:
+                // 提取位点
+                strncpy(cmd.positions, token, sizeof(cmd.positions) - 1);
+                cmd.positions[sizeof(cmd.positions) - 1] = '\0';
+                break;
+            case 2:
+                // 提取循环次数
+                cmd.current_repeat_count = strtol(token, NULL, 10);     //使用strtol转换为十进制整数
+            case 3:
+                // 提取频率
+                map_speed(token, cmd.speed_str);
+                break;
+            default:
+                break;
+        }
+        token = strtok(NULL, "-");      //提取 ‘-’ 前面的字符串
+        token_count++;
+    }
+    return cmd;
+}
+
+void execute_command(const Command* cmd)
+{
+    switch (cmd->mode)                  //区分模式
+    {
+        case '1':
+            // 定点模式
+//            if (Fixed_flag == 1)
+//            {
+//                Fixed_flag = 0;
+//                LED5_TOGGLE;
+//                __set_FAULTMASK(1);
+//                NVIC_SystemReset();
+//            }
+//            else
+//            {
+                currentSelectPosition = Fixed_chose(cmd->positions); // 假设有个 Fixed_chose 函数处理位点选择
+                Fixed_flag = 1;
+                Fixedcnt = 1;
+//            }
+            break;
+        case '2':
+            //随机模式
+            if (strcmp(cmd->positions, "AA") == 0)
+            {
+                if (all_random_flag == 1)
+                {
+                    all_random_flag = 0;
+                    LED5_TOGGLE;
+                    __set_FAULTMASK(1);
+                    NVIC_SystemReset();
+                }
+                else
+                {
+                    all_random_flag = 1;
+                    randomcnt1 = 1;
+                    LED4_TOGGLE;
+                }
+            }
+            else if (strcmp(cmd->positions, "BB") == 0)
+            {
+                if (left_random_flag == 1)
+                {
+                    left_random_flag = 0;
+                    LED5_TOGGLE;
+                    __set_FAULTMASK(1);
+                    NVIC_SystemReset();
+                }
+                else
+                {
+                    left_random_flag = 1;
+                    randomcnt2 = 1;
+                    LED4_TOGGLE;
+                }
+            }
+            else if (strcmp(cmd->positions, "CC") == 0)
+            {
+                if (right_random_flag == 1)
+                {
+                    right_random_flag = 0;
+                    LED5_TOGGLE;
+                    __set_FAULTMASK(1);
+                    NVIC_SystemReset();
+                }
+                else
+                {
+                    right_random_flag = 1;
+                    randomcnt3 = 1;
+                    LED4_TOGGLE;
+                }
+            }
+            break;
+        case '3':
+            // 水平模式
+            // 处理水平模式的位点选择
+            break;
+            // 其他模式逻辑...
+    }
+    // 设置循环次数
+    if (cmd->current_repeat_count > 0)
+    {
+        currentSelectrepeat_count = cmd->current_repeat_count;
+        repeat_flag = 1;
+    }
+    //设置频率
+    int speed_value = freq_chose(cmd->speed_str);
+    if (speed_value > 0)
+    {
+        currentSelectmotor5_speed = speed_value;
+        freq_flag = 1;
+    }
+}
+
+int Fixed_chose(char *positions)       //根据second_char的判断，返回对应的值，作为数组的信号，确定对应的点位
+{
+    if (strcmp(positions, "A1") == 0)
     {
         return 0;
     }
-    else if (strcmp(second_char, "00A2") == 0)
+    else if (strcmp(positions, "A2") == 0)
     {
         return 5;
     }
-    else if (strcmp(second_char, "00A3") == 0)
+    else if (strcmp(positions, "A3") == 0)
     {
         return 10;
     }
-    else if (strcmp(second_char, "00A4") == 0)
+    else if (strcmp(positions, "A4") == 0)
     {
         return 15;
     }
-    else if (strcmp(second_char, "00A5") == 0)
+    else if (strcmp(positions, "A5") == 0)
     {
         return 20;
     }
-    else if (strcmp(second_char, "00B1") == 0)
+    else if (strcmp(positions, "B1") == 0)
     {
         return 1;
     }
-    else if (strcmp(second_char, "00B2") == 0)
+    else if (strcmp(positions, "B2") == 0)
     {
         return 6;
     }
-    else if (strcmp(second_char, "00B3") == 0)
+    else if (strcmp(positions, "B3") == 0)
     {
         return 11;
     }
-    else if (strcmp(second_char, "00B4") == 0)
+    else if (strcmp(positions, "B4") == 0)
     {
         return 16;
     }
-    else if (strcmp(second_char, "00B5") == 0)
+    else if (strcmp(positions, "B5") == 0)
     {
         return 21;
     }
-    else if (strcmp(second_char, "00C1") == 0)
+    else if (strcmp(positions, "C1") == 0)
     {
         return 2;
     }
-    else if (strcmp(second_char, "00C2") == 0)
+    else if (strcmp(positions, "C2") == 0)
     {
         return 7;
     }
-    else if (strcmp(second_char, "00C3") == 0)
+    else if (strcmp(positions, "C3") == 0)
     {
         return 12;
     }
-    else if (strcmp(second_char, "00C4") == 0)
+    else if (strcmp(positions, "C4") == 0)
     {
         return 17;
     }
-    else if (strcmp(second_char, "00C5") == 0)
+    else if (strcmp(positions, "C5") == 0)
     {
         return 22;
     }
-    else if (strcmp(second_char, "00D1") == 0)
+    else if (strcmp(positions, "D1") == 0)
     {
         return 3;
     }
-    else if (strcmp(second_char, "00D2") == 0)
+    else if (strcmp(positions, "D2") == 0)
     {
         return 8;
     }
-    else if (strcmp(second_char, "00D3") == 0)
+    else if (strcmp(positions, "D3") == 0)
     {
         return 13;
     }
-    else if (strcmp(second_char, "00D4") == 0)
+    else if (strcmp(positions, "D4") == 0)
     {
         return 18;
     }
-    else if (strcmp(second_char, "00D5") == 0)
+    else if (strcmp(positions, "D5") == 0)
     {
         return 23;
     }
-    else if (strcmp(second_char, "00E1") == 0)
+    else if (strcmp(positions, "E1") == 0)
     {
         return 4;
     }
-    else if (strcmp(second_char, "00E2") == 0)
+    else if (strcmp(positions, "E2") == 0)
     {
         return 9;
     }
-    else if (strcmp(second_char, "00E3") == 0)
+    else if (strcmp(positions, "E3") == 0)
     {
         return 14;
     }
-    else if (strcmp(second_char, "00E4") == 0)
+    else if (strcmp(positions, "E4") == 0)
     {
         return 19;
     }
-    else if (strcmp(second_char, "00E5") == 0)
+    else if (strcmp(positions, "E5") == 0)
     {
         return 24;
     }
@@ -758,89 +792,61 @@ int Fixed_chose(char *second_char)       //根据second_char的判断，返回�
     }
 }
 
-int repeat_chose(char *second_char)
+void map_speed(const char* speed_str, char* mapped_speed)
 {
-    if (strcmp(second_char, "0000") == 0)
+    if (strcmp(speed_str, "01") == 0)
     {
-        return 0;
+        strcpy(mapped_speed, "3500");
     }
-    else if (strcmp(second_char, "0010") == 0)
+    else if (strcmp(speed_str, "02") == 0)
     {
-        return 1;
+        strcpy(mapped_speed, "4000");
     }
-    else if (strcmp(second_char, "0020") == 0)
+    else if (strcmp(speed_str, "03") == 0)
     {
-        return 2;
+        strcpy(mapped_speed, "4500");
     }
-    else if (strcmp(second_char, "0030") == 0)
+    else if (strcmp(speed_str, "04") == 0)
     {
-        return 3;
+        strcpy(mapped_speed, "5000");
     }
-    else if (strcmp(second_char, "0040") == 0)
+    else if (strcmp(speed_str, "05") == 0)
     {
-        return 4;
-    }
-    else if (strcmp(second_char, "0050") == 0)
-    {
-        return 5;
-    }
-    else if (strcmp(second_char, "0060") == 0)
-    {
-        return 6;
-    }
-    else if (strcmp(second_char, "0070") == 0)
-    {
-        return 7;
-    }
-    else if (strcmp(second_char, "0080") == 0)
-    {
-        return 8;
-    }
-    else if (strcmp(second_char, "0090") == 0)
-    {
-        return 9;
-    }
-    else if (strcmp(second_char, "0100") == 0)
-    {
-        return 10;
-    }
-    else if (strcmp(second_char, "9999") == 0)
-    {
-        return 99;
+        strcpy(mapped_speed, "5500");
     }
     else
     {
-        return  -1;
+        strcpy(mapped_speed, "0");  // 默认值，如果未匹配任何已知速度
     }
 }
 
-int freq_chose(char *second_char)           //频率选择函数
+int freq_chose(const char *speed_str)
 {
-    if (strcmp(second_char, "0001") == 0)
+    if (strcmp(speed_str, "01") == 0)
     {
         return 3500;
     }
-    else if (strcmp(second_char, "0002") == 0)
+    else if (strcmp(speed_str, "02") == 0)
     {
         return 4000;
     }
-    else if (strcmp(second_char, "0003") == 0)
+    else if (strcmp(speed_str, "03") == 0)
     {
         return 4500;
     }
-    else if (strcmp(second_char, "0004") == 0)
+    else if (strcmp(speed_str, "04") == 0)
     {
         return 5000;
     }
-    else if (strcmp(second_char, "0005") == 0)
+    else if (strcmp(speed_str, "05") == 0)
     {
         return 5500;
     }
-    else
-    {
-        return  -1;
+    else {
+        return -1;  // 默认值，如果未匹配任何已知速度
     }
 }
+
 
 void motor1_motor2_motor3_motor4_control(void)
 {
@@ -861,12 +867,12 @@ void Fixed_control(void)
     static uint8_t state = 0;
     if (Fixedcnt == 1)
     {
+        int  motor5_speed = currentSelectmotor5_speed;              // 每次 Fixed_control 调用前更新频率参数
         switch (state)
         {
             case 0: // 初始化并启动 M1、M2、M3、M4
             {
                 motor1_motor2_motor3_motor4_control();  //控制M1、M2、M3、M4
-                freq_function();                  // 每次 Fixed_control 调用前更新频率参数
                 set_motor5_direction(MOTOR_REV);
                 set_motor5_speed(motor5_speed);
                 HAL_Delay(5000);    /** 五秒过后才打开电机的启动 */
@@ -912,19 +918,19 @@ void repeat_function(void)
     repeat_flag = 0;
 }
 
-void freq_function(void)
-{
-    if(freq_flag == 1)
-    {
-        LED3_TOGGLE
-        motor5_speed = currentSelectmotor5_speed;
-        freq_flag = 0;
-    }
-    else
-    {
-        motor5_speed = 3000;
-    }
-}
+//void freq_function(void)
+//{
+//    if(freq_flag == 1)
+//    {
+//        LED3_TOGGLE
+//        motor5_speed = currentSelectmotor5_speed;
+//        freq_flag = 0;
+//    }
+//    else
+//    {
+//        motor5_speed = 3000;
+//    }
+//}
 
 void random_control(void)
 {

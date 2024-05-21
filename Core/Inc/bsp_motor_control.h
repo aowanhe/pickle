@@ -14,6 +14,13 @@ typedef enum
     MOTOR_REV,
 }motor_dir_t;
 
+typedef struct {
+    char mode;               // 模式
+    char positions[20];      // 位点
+    int current_repeat_count;        // 循环次数
+    char speed_str[5];        // M5 电机速度
+} Command;
+
 /* 设置速度（占空比） */
 #define MOTOR1_SET_FWD_COMPAER(ChannelPulse)     TIM1_SetPWM_pulse(TIM_CHANNEL_1,ChannelPulse)    // 设置比较寄存器的值
 #define MOTOR1_SET_REV_COMPAER(ChannelPulse)     TIM1_SetPWM_pulse(TIM_CHANNEL_1,ChannelPulse)    // 设置比较寄存器的值
@@ -129,17 +136,19 @@ void motor5_control(void);
 
 void motor_reset(void);
 void BLE_control(void);
+Command parse_command(const char* data);
+void execute_command(const Command* cmd);
 
 void motor1_motor2_motor3_motor4_control(void);
 void Fixed_control(void);
 void random_control(void);
 
-int Fixed_chose(char *second_char);
-int repeat_chose(char *second_char);
-int freq_chose(char *second_char);
+int Fixed_chose(char *positions);
+int freq_chose(const char *speed_str);
+void map_speed(const char* speed_str, char* mapped_speed);
 
 void freq_function(void);
 void repeat_function(void);
 
-#endif /* __LED_H */
+#endif
 
