@@ -211,22 +211,49 @@ int get_line(char* line, char* stream ,int max_size)
 {
     char *p;
     int len = 0;
-    p=stream;
-    while( *p != '\0' && len < max_size )  //遇到结束符或者最大容量跳出循环
+    p = stream;
+    while( *p != '\0' && len < max_size)  //遇到结束符或者最大容量跳出循环
     {
         line[len++] = *p;
-        p++;
+
         if('\n' == *p || '\r'==*p)
+        {
             break;
+        }
+        p++;
     }
-
-//    if(*p != '\0' && *p != '\n' && *p != '\r')
-//        return 0;
-
     line[len] = '\0';
     return len;
 }
 
+//int get_line(char* line, char* stream, int max_size)
+//{
+//    char *p = stream;
+//    int len = 0;
+//
+//    // 查找帧头
+//    while (*p != '\0' && *p != '<') {
+//        p++;
+//    }
+//
+//    if (*p == '<') {
+//        p++; // 跳过帧头
+//    } else {
+//        return 0; // 没有找到帧头，返回 0
+//    }
+//
+//    // 读取数据直到帧尾或最大长度
+//    while (*p != '\0' && *p != '>' && len < max_size - 1) {
+//        line[len++] = *p++;
+//    }
+//
+//    if (*p == '>') {
+//        line[len] = '\0'; // 确保字符串以 '\0' 结尾
+//        return len;
+//    } else {
+//        return 0; // 没有找到帧尾，返回 0
+//    }
+//}
 
 /**
  * @brief  向BLE写入命令，不检查模块的响应

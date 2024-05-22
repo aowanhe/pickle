@@ -543,7 +543,10 @@ void BLE_control(void)
 
             // 处理数据后，清空接收蓝牙模块数据的缓冲区
             clean_rebuff();
-            // 此值每 1ms 会减 1，减到 0 才可以重新进来这里，所以执行的周期是 200ms
+            // 清空 redata 缓冲区
+//            memset(redata, 0, len);
+//            redata = 0;
+//            // 此值每 1ms 会减 1，减到 0 才可以重新进来这里，所以执行的周期是 200ms
             Task_Delay[0] = 200;
         }
         BLE_WAKEUP_HIGHT;
@@ -579,10 +582,12 @@ Command parse_command(const char* data)  //把接收到的蓝牙数据进行解�
             case 2:
                 // 提取循环次数
                 cmd.current_repeat_count = strtol(token, NULL, 10);     //使用strtol转换为十进制整数
+                break;
             case 3:
                 // 提取频率
-                strncpy(cmd.speed_str, token, sizeof(cmd.speed_str) - 1);
-                cmd.speed_str[sizeof(cmd.speed_str) - 1] = '\0';      //因为数组设置为3，频率参数需要2位，最后一位手动设置为\0，确保传递完整的字符串
+//                strncpy(cmd.speed_str, token, sizeof(cmd.speed_str) - 1);
+//                cmd.speed_str[sizeof(cmd.speed_str) - 1] = '\0';      //因为数组设置为3，频率参数需要2位，最后一位手动设置为\0，确保传递完整的字符串
+                cmd.speed = map_speed(token);
                 break;
             default:
                 break;
@@ -592,6 +597,24 @@ Command parse_command(const char* data)  //把接收到的蓝牙数据进行解�
     }
     return cmd;
 }
+
+int map_speed(const char* speed_str)
+{
+    if (strcmp(speed_str, "01") == 0) {
+        return 3500;
+    } else if (strcmp(speed_str, "02") == 0) {
+        return 4000;
+    } else if (strcmp(speed_str, "03") == 0) {
+        return 4500;
+    } else if (strcmp(speed_str, "04") == 0) {
+        return 5000;
+    } else if (strcmp(speed_str, "05") == 0) {
+        return 5500;
+    } else {
+        return 0;  // 默认值，如果未匹配任何已知速度
+    }
+}
+
 
 void execute_command(const Command* cmd)
 {
@@ -666,16 +689,15 @@ void execute_command(const Command* cmd)
         repeat_flag = 1;
     }
     //设置频率
-    if (cmd->speed_str[0] != '\0')
+//    if (cmd->speed_str[0] != '\0')
+//    {
+//        currentSelectmotor5_speed = freq_chose(cmd->speed_str);
+//    }
+    int speed_value = cmd->speed;
+    if (speed_value > 0)
     {
-        currentSelectmotor5_speed = freq_chose(cmd->speed_str);
-        freq_flag = 1;
+        currentSelectmotor5_speed = speed_value;
     }
-    printf("Mode: %c\n", cmd->mode);
-    printf("Positions: %s\n", cmd->positions);
-    printf("Repeat count: %d\n", cmd->current_repeat_count);
-    printf("Speed string: %s\n", cmd->speed_str);
-    printf("Mapped speed: %d\n", currentSelectmotor5_speed);
 }
 
 int Fixed_chose(char *positions)       //根据second_char的判断，返回对应的值，作为数组的信号，确定对应的点位
@@ -840,7 +862,7 @@ void Fixed_control(void)
                 motor1_motor2_motor3_motor4_control();  //控制M1、M2、M3、M4
                 set_motor5_direction(MOTOR_REV);
                 set_motor5_speed(currentSelectmotor5_speed);
-                HAL_Delay(5000);    /** 五秒过后才打开电机的启动 */
+                HAL_Delay(3000);    /** 五秒过后才打开电机的启动 */
                 set_motor5_enable();
                 state = 1;
                 break;
