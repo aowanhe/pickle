@@ -18,7 +18,7 @@ typedef struct {
     char mode;               // 模式
     char positions[20];      // 位点
     int current_repeat_count;        // 循环次数
-    char speed_str[5];        // M5 电机速度
+    char speed_str[3];        // M5 电机速度
 } Command;
 
 /* 设置速度（占空比） */
@@ -145,7 +145,6 @@ void random_control(void);
 
 int Fixed_chose(char *positions);
 int freq_chose(const char *speed_str);
-void map_speed(const char* speed_str, char* mapped_speed);
 
 void freq_function(void);
 void repeat_function(void);

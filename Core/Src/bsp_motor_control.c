@@ -40,7 +40,13 @@ uint16_t randomcnt5 = 1;
 
 uint16_t sensor_triggered = 0;
 
-typedef struct {
+int  currentSelectPosition = -1;
+int  currentSelectrepeat_count = -1;
+
+int currentSelectmotor5_speed = 3000;
+
+typedef struct
+{
     float horizontal;//仰角pid4
     float vertical;//水平摆角pid3
     float M1speed;
@@ -515,11 +521,6 @@ void motor4_pid_control(void)
     }
 }
 
-int  currentSelectPosition = -1;
-int  currentSelectrepeat_count = -1;
-
-int currentSelectmotor5_speed = 3000;
-
 void BLE_control(void)
 {
     char* redata;       //定义读数据的指针
@@ -549,15 +550,14 @@ void BLE_control(void)
     }
 }
 
-
-
 Command parse_command(const char* data)  //把接收到的蓝牙数据进行解析
 {
     Command cmd = {0};  // 初始化结构体为零
     // 复制数据以避免破坏原始数据
     char temp_data[100];
-    strncpy(temp_data, data, sizeof(temp_data) - 1);
-    temp_data[sizeof(temp_data) - 1] = '\0';  // 确保字符串以 '\0' 结尾
+    memset(temp_data, 0, sizeof(temp_data));             // 清零缓冲区
+    strncpy(temp_data, data, sizeof(temp_data) - 1);    //复制数据到缓存区
+    temp_data[sizeof(temp_data) - 1] = '\0';            // 确保字符串以 '\0' 结尾
 
     // 跳过模式部分并分割字符串
     char* token = strtok(temp_data, "-");  //将一个字符串分割成一系列的标记（tokens），每个标记之间由指定的分隔符隔开。返回指向被分割的第一个标记的指针。如果没有更多的标记，则返回 NULL。
@@ -581,7 +581,8 @@ Command parse_command(const char* data)  //把接收到的蓝牙数据进行解�
                 cmd.current_repeat_count = strtol(token, NULL, 10);     //使用strtol转换为十进制整数
             case 3:
                 // 提取频率
-                map_speed(token, cmd.speed_str);
+                strncpy(cmd.speed_str, token, sizeof(cmd.speed_str) - 1);
+                cmd.speed_str[sizeof(cmd.speed_str) - 1] = '\0';      //因为数组设置为3，频率参数需要2位，最后一位手动设置为\0，确保传递完整的字符串
                 break;
             default:
                 break;
@@ -598,19 +599,8 @@ void execute_command(const Command* cmd)
     {
         case '1':
             // 定点模式
-//            if (Fixed_flag == 1)
-//            {
-//                Fixed_flag = 0;
-//                LED5_TOGGLE;
-//                __set_FAULTMASK(1);
-//                NVIC_SystemReset();
-//            }
-//            else
-//            {
-                currentSelectPosition = Fixed_chose(cmd->positions); // 假设有个 Fixed_chose 函数处理位点选择
-                Fixed_flag = 1;
-                Fixedcnt = 1;
-//            }
+            currentSelectPosition = Fixed_chose(cmd->positions); // 假设有个 Fixed_chose 函数处理位点选择
+            Fixedcnt = 1;
             break;
         case '2':
             //随机模式
@@ -676,12 +666,16 @@ void execute_command(const Command* cmd)
         repeat_flag = 1;
     }
     //设置频率
-    int speed_value = freq_chose(cmd->speed_str);
-    if (speed_value > 0)
+    if (cmd->speed_str[0] != '\0')
     {
-        currentSelectmotor5_speed = speed_value;
+        currentSelectmotor5_speed = freq_chose(cmd->speed_str);
         freq_flag = 1;
     }
+    printf("Mode: %c\n", cmd->mode);
+    printf("Positions: %s\n", cmd->positions);
+    printf("Repeat count: %d\n", cmd->current_repeat_count);
+    printf("Speed string: %s\n", cmd->speed_str);
+    printf("Mapped speed: %d\n", currentSelectmotor5_speed);
 }
 
 int Fixed_chose(char *positions)       //根据second_char的判断，返回对应的值，作为数组的信号，确定对应的点位
@@ -792,34 +786,6 @@ int Fixed_chose(char *positions)       //根据second_char的判断，返回对�
     }
 }
 
-void map_speed(const char* speed_str, char* mapped_speed)
-{
-    if (strcmp(speed_str, "01") == 0)
-    {
-        strcpy(mapped_speed, "3500");
-    }
-    else if (strcmp(speed_str, "02") == 0)
-    {
-        strcpy(mapped_speed, "4000");
-    }
-    else if (strcmp(speed_str, "03") == 0)
-    {
-        strcpy(mapped_speed, "4500");
-    }
-    else if (strcmp(speed_str, "04") == 0)
-    {
-        strcpy(mapped_speed, "5000");
-    }
-    else if (strcmp(speed_str, "05") == 0)
-    {
-        strcpy(mapped_speed, "5500");
-    }
-    else
-    {
-        strcpy(mapped_speed, "0");  // 默认值，如果未匹配任何已知速度
-    }
-}
-
 int freq_chose(const char *speed_str)
 {
     if (strcmp(speed_str, "01") == 0)
@@ -867,14 +833,13 @@ void Fixed_control(void)
     static uint8_t state = 0;
     if (Fixedcnt == 1)
     {
-        int  motor5_speed = currentSelectmotor5_speed;              // 每次 Fixed_control 调用前更新频率参数
         switch (state)
         {
             case 0: // 初始化并启动 M1、M2、M3、M4
             {
                 motor1_motor2_motor3_motor4_control();  //控制M1、M2、M3、M4
                 set_motor5_direction(MOTOR_REV);
-                set_motor5_speed(motor5_speed);
+                set_motor5_speed(currentSelectmotor5_speed);
                 HAL_Delay(5000);    /** 五秒过后才打开电机的启动 */
                 set_motor5_enable();
                 state = 1;
@@ -917,20 +882,6 @@ void repeat_function(void)
     }
     repeat_flag = 0;
 }
-
-//void freq_function(void)
-//{
-//    if(freq_flag == 1)
-//    {
-//        LED3_TOGGLE
-//        motor5_speed = currentSelectmotor5_speed;
-//        freq_flag = 0;
-//    }
-//    else
-//    {
-//        motor5_speed = 3000;
-//    }
-//}
 
 void random_control(void)
 {
