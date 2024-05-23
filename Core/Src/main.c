@@ -147,7 +147,6 @@ static void MX_NVIC_Init(void)
 
     HAL_NVIC_SetPriority(BLE_UARTx_IRQ, 0, 0);
     HAL_NVIC_EnableIRQ(BLE_UARTx_IRQ);
-
 }
 /* USER CODE END 4 */
 

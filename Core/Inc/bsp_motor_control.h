@@ -14,11 +14,12 @@ typedef enum
     MOTOR_REV,
 }motor_dir_t;
 
-typedef struct {
+typedef struct
+{
     char mode;               // 模式
     char positions[20];      // 位点
     int current_repeat_count;        // 循环次数
-    int speed;         // M5 电机速度,修改为整数类型来存储速度
+    char speed_str[5];        // M5 电机速度
 } Command;
 
 /* 设置速度（占空比） */
@@ -138,8 +139,6 @@ void motor_reset(void);
 void BLE_control(void);
 Command parse_command(const char* data);
 void execute_command(const Command* cmd);
-
-int map_speed(const char* speed_str);
 
 void motor1_motor2_motor3_motor4_control(void);
 void Fixed_control(void);

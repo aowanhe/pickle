@@ -108,9 +108,7 @@ uint8_t BLE_Send_CMD(char* cmd,uint8_t clean)
 void BLE_SendString(char* str)
 {
     BLE_WAKEUP_LOW;
-
     BLE_Usart_SendString((uint8_t *)str);
-
 }
 
 
@@ -138,9 +136,6 @@ uint8_t BLE_Init(void)
     return 0;
 //    return BLE_Send_CMD("AT\r\n",1);
 }
-
-
-
 
 
 /**
@@ -209,51 +204,21 @@ char *skipPrefix(char *str, size_t str_length, const char *prefix)
  */
 int get_line(char* line, char* stream ,int max_size)
 {
-    char *p;
-    int len = 0;
-    p = stream;
-    while( *p != '\0' && len < max_size)  //遇到结束符或者最大容量跳出循环
+    char *p;        //定义一个指向字符的指针‘p’
+    int len = 0;    //定义一个整数 len，初始化为 0，表示当前读取的字符数
+    p = stream;     //将指针 p 指向 stream，即将 p 设置为 stream 的开始位置。
+    while( *p != '\0' && len < max_size )                           //条件是指针 p 所指向的字符不是字符串结束符 '\0'，并且已经读取的字符数 len 小于 max_size。
     {
-        line[len++] = *p;
-
-        if('\n' == *p || '\r'==*p)
-        {
-            break;
-        }
-        p++;
+        line[len++] = *p;                                          //将当前字符 *p 赋值给 line 数组的当前位置，然后递增 len。这将当前字符从 stream 复制到 line。
+        p++;                                       //将指针 p 移动到 stream 的下一个字符。
+        if('\n' == *p || '\r'==*p)                                //检查当前字符是否是换行符 '\n' 或回车符 '\r'。
+            break;                                               //如果当前字符是换行符或回车符，则跳出 while 循环。
     }
-    line[len] = '\0';
-    return len;
+    line[len] = '\0';                                           //在 line 数组的末尾添加一个字符串结束符 '\0'，确保 line 是一个以 '\0' 结尾的有效 C 字符串。
+    if(*p != '\0' && *p != '\n' && *p != '\r')                  //检查 while 循环结束时的字符。如果不是字符串结束符 '\0'，也不是换行符 '\n'，也不是回车符 '\r'，则返回 0。
+        return 0;
+    return len;                                                 //返回读取的字符数 len
 }
-
-//int get_line(char* line, char* stream, int max_size)
-//{
-//    char *p = stream;
-//    int len = 0;
-//
-//    // 查找帧头
-//    while (*p != '\0' && *p != '<') {
-//        p++;
-//    }
-//
-//    if (*p == '<') {
-//        p++; // 跳过帧头
-//    } else {
-//        return 0; // 没有找到帧头，返回 0
-//    }
-//
-//    // 读取数据直到帧尾或最大长度
-//    while (*p != '\0' && *p != '>' && len < max_size - 1) {
-//        line[len++] = *p++;
-//    }
-//
-//    if (*p == '>') {
-//        line[len] = '\0'; // 确保字符串以 '\0' 结尾
-//        return len;
-//    } else {
-//        return 0; // 没有找到帧尾，返回 0
-//    }
-//}
 
 /**
  * @brief  向BLE写入命令，不检查模块的响应

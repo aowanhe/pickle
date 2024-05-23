@@ -9,13 +9,6 @@
   * @date    2013-xx-xx
   * @brief   HC05串口驱动
   ******************************************************************************
-  * @attention
-  *
-  * 实验平台:野火 霸道 STM32 开发板
-  * 论坛    :http://www.firebbs.cn
-  * 淘宝    :https://fire-stm32.taobao.com
-  *
-  ******************************************************************************
   */
 
 #include "bsp_usart_blt.h"
@@ -91,31 +84,29 @@ void BLE_Usart_SendString(uint8_t *str)
 
 }
 
-
+//uart接收中断，并将接收到的数据存储再缓冲区中。
 void bsp_USART_Process(void)
 {
-    if(uart_p2<UART_BUFF_SIZE2)
+    if(uart_p2<UART_BUFF_SIZE2)       //检查缓冲区是否已满
     {
-        if(__HAL_UART_GET_IT_SOURCE(&UART_InitStructure,UART_IT_RXNE) != RESET)
+        if(__HAL_UART_GET_IT_SOURCE(&UART_InitStructure,UART_IT_RXNE) != RESET)         // 检查 UART 接收中断是否触发
         {
-            HAL_UART_Receive(&UART_InitStructure, (uint8_t *)&uart_buff2[uart_p2], 1, 1000);
-            uart_p2++;
+            HAL_UART_Receive(&UART_InitStructure, (uint8_t *)&uart_buff2[uart_p2], 1, 1000);    // 接收一个字节数据
+            uart_p2++;                  // 增加缓冲区索引
         }
     }
     else
     {
-        clean_rebuff();
+        clean_rebuff();          // 如果缓冲区已满，则清空缓冲区
     }
-    HAL_UART_IRQHandler(&UART_InitStructure);
+    HAL_UART_IRQHandler(&UART_InitStructure);           // 处理 UART 中断
 }
-
-
 
 //获取接收到的数据和长度
 char *get_rebuff(uint16_t *len)
 {
-    *len = uart_p2;
-    return (char *)&uart_buff2;
+    *len = uart_p2;                 //获取长度
+    return (char *)&uart_buff2;     //获取数据
 }
 
 //清空缓冲区
