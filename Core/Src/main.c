@@ -84,10 +84,7 @@ int main(void)
         Key_control();
         Knob_control();
         BLE_control();
-        if(repeat_flag == 1)
-        {
-            repeat_function();
-        }
+        repeat_function();
     }
 }
 

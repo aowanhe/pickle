@@ -58,8 +58,6 @@ void USART_Config(void)
     /** 配置串口接收中断 */
     __HAL_UART_ENABLE_IT(&UartHandle,UART_IT_RXNE);
 
-    HAL_NVIC_SetPriority(USART_IRQ, 0, 0);
-    HAL_NVIC_EnableIRQ(USART_IRQ);
 }
 
 /**
@@ -73,11 +71,11 @@ void USART_Config(void)
 uint8_t PushArr(uint8_t *arr,uint8_t data)
 {
     uint8_t index;
-    index = (wr_p + 1) % max_length;
-    if(index == rd_p)return 1;
-    arr[wr_p]=data;
-    wr_p = index;
-    return 0;
+    index = (wr_p + 1) % max_length;                // 计算写指针的下一个位置，使其在达到缓冲区最大长度时回到起始位置，从而实现循环缓冲区（环形缓冲区）的效果。
+    if(index == rd_p)return 1;                      // 如果缓冲区满，则返回 1；即代表接受完一组数据
+    arr[wr_p]=data;                                 // 将数据存储到缓冲区
+    wr_p = index;                                   // 更新写指针
+    return 0;                                       // 返回 0 表示成功
 }
 
 /**

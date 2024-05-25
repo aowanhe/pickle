@@ -9,7 +9,7 @@
 #include "stm32f1xx.h"
 #include <stdio.h>
 
-#define BLE_UART_BAUD_RATE          256000
+#define BLE_UART_BAUD_RATE         256000
 
 
 #define BLE_UARTx 					    UART4
@@ -18,12 +18,10 @@
 #define BLE_UART_RX_PORT                   GPIOC
 #define UART_RX_BLE_CLK_ENABLE()             __HAL_RCC_GPIOC_CLK_ENABLE()
 #define BLE_UART_RX_PIN                    GPIO_PIN_11
-//#define USART_RX_AF                     GPIO_AF7_USART2
 
 #define BLE_UART_TX_PORT                    GPIOC
 #define UART_TX_BLE_CLK_ENABLE()              __HAL_RCC_GPIOC_CLK_ENABLE()
 #define BLE_UART_TX_PIN                     GPIO_PIN_10
-//#define USART_TX_AF                   GPIO_AF7_USART2
 
 #define BLE_UARTx_IRQHandler            UART4_IRQHandler
 #define BLE_UARTx_IRQ                   UART4_IRQn

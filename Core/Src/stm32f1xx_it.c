@@ -334,22 +334,18 @@ void USART_IRQHandler(void)
 {
     uint8_t data[1];
 
-    data[0] = __HAL_UART_FLUSH_DRREGISTER(&UartHandle);
+    data[0] = __HAL_UART_FLUSH_DRREGISTER(&UartHandle);      // 从数据寄存器读取接收到的数据并清除 RXNE 标志
 // data[0] = UartHandle.Instance->DR;
+// 检查 RXNE 中断是否发生
     if(__HAL_UART_GET_IT_SOURCE(&UartHandle, UART_IT_RXNE) != RESET)
     {
-        data[0] = UartHandle.Instance->DR;
-        PushArr(data_buff,data[0]);
-        __HAL_UART_CLEAR_FLAG(&UartHandle, UART_IT_RXNE);
+        data[0] = UartHandle.Instance->DR;                         // 读取接收寄存器中的数据
+        PushArr(data_buff,data[0]);                      // 将数据推送到缓冲区
+        __HAL_UART_CLEAR_FLAG(&UartHandle, UART_IT_RXNE);          // 清除 RXNE 中断标志
     }
-    HAL_UART_IRQHandler(&UartHandle);
-    __HAL_UART_ENABLE_IT(&UartHandle,UART_IT_RXNE);
+    HAL_UART_IRQHandler(&UartHandle);                       // 调用 HAL 库的 UART 中断处理函数
+    __HAL_UART_ENABLE_IT(&UartHandle,UART_IT_RXNE);               // 重新使能 RXNE 中断
 }
-void BLT_UARTx_IRQHandler(void)
-{
-    bsp_USART_Process();
-}
-
 
 void BLE_UARTx_IRQHandler(void)
 {

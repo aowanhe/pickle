@@ -525,7 +525,8 @@ void BLE_control(void)
 {
     char* redata;       //定义读数据的指针
     uint16_t len;       //定义数据大小
-    if (Task_Delay[0] == 0 && IS_BLE_CONNECTED())      //定时并且判断INT引脚电平是否发生变化
+
+    if (IS_BLE_CONNECTED())      //判断INT引脚电平是否发生变化
     {
         BLE_WAKEUP_LOW;        //蓝牙wakeup引脚置0，启动蓝牙
         uint16_t linelen;     //定义数据的长度
@@ -533,30 +534,24 @@ void BLE_control(void)
         redata = get_rebuff(&len);        //把蓝牙数据读取到redata
         linelen = get_line(linebuff, redata, len);  //计算接收到的数据的长度
         /*检查数据是否有更新*/
-        if (linelen < 30 && linelen != 0)
+        if (linelen < 50 && linelen != 0)
         {
             // 解析命令
             Command cmd = parse_command(redata);
-
-            // 执行命令
-            execute_command(&cmd);
-
             // 处理数据后，清空接收蓝牙模块数据的缓冲区
             clean_rebuff();
-            // 此值每 1ms 会减 1，减到 0 才可以重新进来这里，所以执行的周期是 200ms
-            Task_Delay[0] = 200;
+            // 执行命令
+            execute_command(&cmd);
         }
         BLE_WAKEUP_HIGHT;
     }
 }
 
-
-
 Command parse_command(const char* data)  //把接收到的蓝牙数据进行解析
 {
     Command cmd = {0};  // 初始化结构体为零
     // 复制数据以避免破坏原始数据
-    char temp_data[100];
+    char temp_data[50];
     strncpy(temp_data, data, sizeof(temp_data) - 1);
     temp_data[sizeof(temp_data) - 1] = '\0';  // 确保字符串以 '\0' 结尾
 
@@ -583,7 +578,6 @@ Command parse_command(const char* data)  //把接收到的蓝牙数据进行解�
             case 3:
                 // 提取频率
                 strncpy(cmd.speed_str, token, sizeof(cmd.speed_str) - 1);
-//                cmd.speed_str[sizeof(cmd.speed_str) - 1] = '\0';
                 break;
             default:
                 break;
@@ -783,26 +777,53 @@ int Fixed_chose(char *positions)       //根据second_char的判断，返回对�
 
 int freq_chose(const char *speed_str)
 {
-    char speed_char = speed_str[0]; // 取出第一个字符
-
-    switch (speed_char)
+    if (strcmp(speed_str, "01")== 0)
     {
-        case 'a':
         LED5_TOGGLE;
-            return 3500;
-        case 'b':
-            return 4000;
-        case 'c':
-            return 4500;
-        case 'd':
-        LED5_TOGGLE;
-            return 5000;
-        case 'e':
-            return 5500;
-        default:
-            return -1;  // 默认值，如果未匹配任何已知速度
+        return 3500;
     }
+    if (strcmp(speed_str, "02")== 0)
+    {
+        return 4000;
+    }
+    if (strcmp(speed_str, "03")== 0)
+    {
+        return 4500;
+    }
+    if (strcmp(speed_str, "04")== 0)
+    {
+        LED5_TOGGLE;
+        return 5000;
+    }
+    if (strcmp(speed_str, "05")== 0)
+    {
+        return 5500;
+    }
+    return -1;  // 默认值，如果未匹配任何已知速度
 }
+
+//int freq_chose(const char *speed_str)
+//{
+//    char speed_char = speed_str[0]; // 取出第一个字符
+//
+//    switch (speed_char)
+//    {
+//        case 'a':
+//        LED5_TOGGLE;
+//            return 3500;
+//        case 'b':
+//            return 4000;
+//        case 'c':
+//            return 4500;
+//        case 'd':
+//        LED5_TOGGLE;
+//            return 5000;
+//        case 'e':
+//            return 5500;
+//        default:
+//            return -1;  // 默认值，如果未匹配任何已知速度
+//    }
+//}
 
 
 void motor1_motor2_motor3_motor4_control(void)
@@ -853,24 +874,25 @@ void Fixed_control(void)
     }
 }
 
-void repeat_function(void)
-{
-    int loop_count = 0;
-    int repeat_count_comparison_value = 0;
-    repeat_count_comparison_value = currentSelectrepeat_count;       //传递需要重复的次数
+void repeat_function(void) {
+    if (repeat_flag == 1) {
+        int loop_count = 0;
+        int repeat_count_comparison_value = 0;
+        repeat_count_comparison_value = currentSelectrepeat_count;       //传递需要重复的次数
 
-    while (loop_count < repeat_count_comparison_value)              // 这里是一个示例，循环3次
-    {
-        sensor_triggered = 0;
-        Fixedcnt = 1;
-        // 等待 Fixed_control 完成其任务
-        while (sensor_triggered == 0)         //当sensor_triggered = 1的时候,即有球落下触发传感器，跳出循环
+        while (loop_count < repeat_count_comparison_value)              // 这里是一个示例，循环3次
         {
-            Fixed_control();                 // 持续调用 Fixed_control，直到其完成任务并重置 Fixedcnt
+            sensor_triggered = 0;
+            Fixedcnt = 1;
+            // 等待 Fixed_control 完成其任务
+            while (sensor_triggered == 0)         //当sensor_triggered = 1的时候,即有球落下触发传感器，跳出循环
+            {
+                Fixed_control();                 // 持续调用 Fixed_control，直到其完成任务并重置 Fixedcnt
+            }
+            loop_count++;  // 有球落下后，循环计数器自增1
         }
-        loop_count++;  // 有球落下后，循环计数器自增1
+        repeat_flag = 0;
     }
-    repeat_flag = 0;
 }
 
 void random_control(void)
