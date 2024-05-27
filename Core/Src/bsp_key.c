@@ -2,6 +2,8 @@
 #include "bsp_key.h"
 #include "bsp_pid.h"
 #include "bsp_led.h"
+#include "bsp_usart_blt.h"
+#include "bsp_hc05.h"
 
 int downcurrent = 0;
 int upcurrent = 0;
@@ -144,16 +146,21 @@ void Key_control(void)
     /* 扫描KEY4 */
     if( Key_Scan(KEY4_GPIO_PORT, KEY4_PIN) == KEY_ON)
     {
-        LED4_TOGGLE
-        if(all_random_flag == 1)
+        char* redata1;       //定义读数据的指针
+        uint16_t len;       //定义数据大小
+        if (IS_BLE_CONNECTED()) // 判断INT引脚电平是否发生变化
         {
-            all_random_flag = 0;
-            set_motor5_disable();
+            BLE_WAKEUP_LOW;        //蓝牙wakeup引脚置0，启动蓝牙
+            /*获取数据*/
+            redata1 = get_rebuff(&len);        //把蓝牙数据读取到redata
+            // 解析命令
+            Command cmd = parse_command(redata1);
+            // 处理数据后，清空接收蓝牙模块数据的缓冲区
+            clean_rebuff();
+            // 执行命令
+            execute_command(&cmd);
         }
-        else
-        {
-            all_random_flag = 1;
-        }
+//        BLE_WAKEUP_HIGHT;
     }
 
     /* 扫描KEY5 */

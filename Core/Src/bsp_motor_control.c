@@ -43,7 +43,10 @@ uint16_t sensor_triggered = 0;
 int  currentSelectPosition = -1;
 int  currentSelectrepeat_count = -1;
 
-float currentSelectmotor5_speed = 3000.0f;
+int currentSelectmotor5_speed = 3000;
+
+volatile int param_updated_flag = 0; // 定义参数更新标志位
+
 
 typedef struct
 {
@@ -528,6 +531,7 @@ void BLE_control(void)
 
     if (IS_BLE_CONNECTED())      //判断INT引脚电平是否发生变化
     {
+        HAL_Delay(5);
         BLE_WAKEUP_LOW;        //蓝牙wakeup引脚置0，启动蓝牙
         uint16_t linelen;     //定义数据的长度
         /*获取数据*/
@@ -536,14 +540,14 @@ void BLE_control(void)
         /*检查数据是否有更新*/
         if (linelen < 50 && linelen != 0)
         {
-            // 解析命令
-            Command cmd = parse_command(redata);
-            // 处理数据后，清空接收蓝牙模块数据的缓冲区
-            clean_rebuff();
-            // 执行命令
-            execute_command(&cmd);
+
+            Command cmd = parse_command(redata);            // 解析命令
+
+            clean_rebuff();                     // 处理数据后，清空接收蓝牙模块数据的缓冲区
+
+            execute_command(&cmd);              // 执行命令
+
         }
-        BLE_WAKEUP_HIGHT;
     }
 }
 
@@ -602,7 +606,6 @@ void execute_command(const Command* cmd)
         case '1':
             // 定点模式
             currentSelectPosition = Fixed_chose(cmd->positions); // 假设有个 Fixed_chose 函数处理位点选择
-            Fixed_flag = 1;
             Fixedcnt = 1;
             break;
         case '2':
@@ -664,7 +667,6 @@ void execute_command(const Command* cmd)
         LED3_TOGGLE
         repeat_flag = 1;
     }
-
 }
 
 int Fixed_chose(char *positions)       //根据second_char的判断，返回对应的值，作为数组的信号，确定对应的点位
@@ -802,30 +804,6 @@ int freq_chose(const char *speed_str)
     return -1;  // 默认值，如果未匹配任何已知速度
 }
 
-//int freq_chose(const char *speed_str)
-//{
-//    char speed_char = speed_str[0]; // 取出第一个字符
-//
-//    switch (speed_char)
-//    {
-//        case 'a':
-//        LED5_TOGGLE;
-//            return 3500;
-//        case 'b':
-//            return 4000;
-//        case 'c':
-//            return 4500;
-//        case 'd':
-//        LED5_TOGGLE;
-//            return 5000;
-//        case 'e':
-//            return 5500;
-//        default:
-//            return -1;  // 默认值，如果未匹配任何已知速度
-//    }
-//}
-
-
 void motor1_motor2_motor3_motor4_control(void)
 {
     Position selected_position = all_positions[currentSelectPosition];
@@ -868,14 +846,22 @@ void Fixed_control(void)
                     Fixedcnt = 0;               // 重置控制标志位
                     sensor_triggered = 1;
                 }
+                if (param_updated_flag)
+                {
+                    // 重新加载参数
+                    set_motor5_speed(currentSelectmotor5_speed);
+                    param_updated_flag = 0; // 重置参数更新标志位
+                }
                 break;
             }
         }
     }
 }
 
-void repeat_function(void) {
-    if (repeat_flag == 1) {
+void repeat_function(void)
+{
+    if (repeat_flag == 1)
+    {
         int loop_count = 0;
         int repeat_count_comparison_value = 0;
         repeat_count_comparison_value = currentSelectrepeat_count;       //传递需要重复的次数
@@ -887,7 +873,7 @@ void repeat_function(void) {
             // 等待 Fixed_control 完成其任务
             while (sensor_triggered == 0)         //当sensor_triggered = 1的时候,即有球落下触发传感器，跳出循环
             {
-                Fixed_control();                 // 持续调用 Fixed_control，直到其完成任务并重置 Fixedcnt
+                Fixed_control(); // 持续调用 Fixed_control，直到其完成任务并重置 Fixedcnt
             }
             loop_count++;  // 有球落下后，循环计数器自增1
         }

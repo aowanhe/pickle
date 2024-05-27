@@ -28,7 +28,8 @@ extern ReceiveData BLE_USART_ReceiveData;
 #define UART_BUFF_SIZE2      128
 volatile    uint16_t uart_p2 = 0;
 uint8_t     uart_buff2[UART_BUFF_SIZE2];
-uint16_t uart_read_p = 0;
+#define TERMINATOR '\n' // 设定终止符，比如回车符或其他标识符
+volatile uint8_t data_received = 0; // 标志位，指示是否接收到完整数据
 
 
 /*
@@ -90,17 +91,18 @@ void BLE_Usart_SendString(uint8_t *str)
 
 }
 
-
 void bsp_USART_Process(void)
 {
     if (__HAL_UART_GET_IT_SOURCE(&UART_InitStructure, UART_IT_RXNE) != RESET )
     {
-        HAL_UART_Receive_IT(&UART_InitStructure, (uint8_t *) &uart_buff2[uart_p2], sizeof(uart_buff2));
+        HAL_UART_Receive(&UART_InitStructure, (uint8_t *)&uart_buff2[uart_p2], 1, 1000);    // 接收一个字节数据
+//        HAL_UART_Receive_IT(&UART_InitStructure, (uint8_t *) &uart_buff2[uart_p2], sizeof(uart_buff2));
         uart_p2++;
     }
     HAL_UART_IRQHandler(&UART_InitStructure);
-    __HAL_UART_ENABLE_IT(&UART_InitStructure,UART_IT_RXNE);               // 重新使能 RXNE 中断
+//    __HAL_UART_ENABLE_IT(&UART_InitStructure,UART_IT_RXNE);               // 重新使能 RXNE 中断
 }
+
 
 //获取接收到的数据和长度
 char *get_rebuff(uint16_t *len)

@@ -145,8 +145,6 @@ uint8_t BLE_Init(void)
  */
 unsigned long htoul(const char *str)
 {
-
-
     long result = 0;
 
     if (!str)
@@ -168,10 +166,8 @@ unsigned long htoul(const char *str)
         result = (result * 16) + value;
         ++str;
     }
-
     return result;
 }
-
 
 /**
  * @brief  在str中，跳过它前面的prefix字符串,
@@ -247,8 +243,6 @@ void writeCommand(const char *command, const char *arg)
     BLE_Usart_SendString((uint8_t *)str_buf);
 
 }
-
-
 
 /**
  * @brief  扫描周边的蓝牙设备，并存储到设备列表中。
@@ -385,7 +379,6 @@ void strBLTAddr(BLEDev *bleDev,char delimiter)
 
 }
 
-
 /**
  * @brief  获取远程蓝牙设备的名称
    * @param  bleDev ，蓝牙设备列表指针
@@ -467,8 +460,6 @@ void printBLEInfo(BLEDev *bleDev)
 
 }
 
-
-
 /**
  * @brief  扫描蓝牙设备，并连接名称中含有"BLE"的设备
    * @param  无
@@ -509,11 +500,3 @@ uint8_t linkBLE(void)
     return 1;
 
 }
-
-
-
-
-
-
-
-
