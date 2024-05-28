@@ -548,7 +548,6 @@ void BLE_control(void)
             Command cmd = parse_command(redata);            // 解析命令
             strncpy(current_command, redata, COMMAND_SIZE);      // 保存当前命令
             current_command[COMMAND_SIZE - 1] = '\0';           // 确保字符串以空字符结尾
-
             // 比较当前命令与上一次命令
             if (strcmp(current_command, last_command) == 0)
             {
@@ -866,7 +865,7 @@ void Fixed_control(void)
 
         case 1:
             // 等待一段时间以确保发球机移动到位
-            if (HAL_GetTick() - last_tick >= 3000)  // 例如等待1000ms
+            if (HAL_GetTick() - last_tick >= 4000)  // 例如等待1000ms
             {
                 set_motor5_direction(MOTOR_REV);
                 set_motor5_speed(currentSelectmotor5_speed);
@@ -886,7 +885,7 @@ void Fixed_control(void)
 
         case 3:
             // 检测Dropping_adc_mean以判断球是否落下
-            if (Dropping_adc_mean < 400)
+            if (Dropping_adc_mean < 1000)
             {
                 // 关闭电机5
                 set_motor5_disable();
@@ -914,6 +913,7 @@ void repeat_function(void)
     if (new_data_flag == 1)                          //如果有数据更新，重置状态机
     {
         repeat_state = REPEAT_IDLE;                 // 重置状态机
+        loop_count = 0;                             //初始化重复计数器
         new_data_flag = 0;                          // 清除新数据标志位
     }
     switch (repeat_state)
@@ -922,13 +922,11 @@ void repeat_function(void)
             if (repeat_flag == 1)
             {
                 repeat_flag = 0;                        // 立即清除标志位，避免重复进入这个状态
-                loop_count = 0;                         //初始化重复计数器
                 repeat_state = REPEAT_RUNNING;          //准备进入下一状态
             }
             break;
 
         case REPEAT_RUNNING:
-            sensor_triggered = 0;                       //表示尚未触发传感器
             Fixedcnt = 1;                               //表明定点模式控制已启动
             repeat_state = REPEAT_WAITING_SENSOR;      //准备等待传感器触发
             break;
@@ -938,13 +936,14 @@ void repeat_function(void)
             Fixed_control();                                                // 持续调用 Fixed_control，直到其完成任务并重置 Fixedcnt
             if (sensor_triggered == 1)                                      //表示传感器已经触发
             {
-                loop_count++;                                               //将计数器自增1
+                sensor_triggered = 0;                                       //表示尚未触发传感器
                 if (loop_count >= repeat_count_comparison_value)            //检查是否达到需要重复的次数
                 {
                     repeat_state = REPEAT_IDLE;                             //达到了表示任务完成
                 }
                 else
                 {
+                    loop_count++;                                            //将计数器自增1
                     repeat_state = REPEAT_RUNNING;                          //未达到返回上一状态再循环
                 }
             }
