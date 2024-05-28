@@ -45,7 +45,7 @@ int  currentSelectrepeat_count = -1;
 
 int currentSelectmotor5_speed = 3000;
 
-volatile int param_updated_flag = 0; // 定义参数更新标志位
+volatile int new_data_flag = 0; // 标志位，表示有新数据
 
 
 typedef struct
@@ -524,28 +524,58 @@ void motor4_pid_control(void)
     }
 }
 
+#define COMMAND_SIZE 50                      // 假设命令的最大长度为 50
+char last_command[COMMAND_SIZE] = {0}; // 用于保存上一次命令的全局变量
+char current_command[COMMAND_SIZE] = {0}; // 用于保存当前命令的全局变量
+int is_motor_running = 0; // 表示电机当前状态
+
 void BLE_control(void)
 {
     char* redata;       //定义读数据的指针
     uint16_t len;       //定义数据大小
 
-    if (IS_BLE_CONNECTED())      //判断INT引脚电平是否发生变化
+    if (IS_BLE_CONNECTED())                 //判断INT引脚电平是否发生变化
     {
         HAL_Delay(5);
-        BLE_WAKEUP_LOW;        //蓝牙wakeup引脚置0，启动蓝牙
-        uint16_t linelen;     //定义数据的长度
+        BLE_WAKEUP_LOW;                     //蓝牙wakeup引脚置0，启动蓝牙
+        uint16_t linelen;                   //定义数据的长度
         /*获取数据*/
         redata = get_rebuff(&len);        //把蓝牙数据读取到redata
         linelen = get_line(linebuff, redata, len);  //计算接收到的数据的长度
         /*检查数据是否有更新*/
         if (linelen < 50 && linelen != 0)
         {
-
             Command cmd = parse_command(redata);            // 解析命令
+            strncpy(current_command, redata, COMMAND_SIZE);      // 保存当前命令
+            current_command[COMMAND_SIZE - 1] = '\0';           // 确保字符串以空字符结尾
+
+            // 比较当前命令与上一次命令
+            if (strcmp(current_command, last_command) == 0)
+            {
+                if (is_motor_running == 1)
+                {
+                    set_motor5_disable(); // 如果电机正在运行，停止电机
+                    is_motor_running = 0; // 重置电机运行状态
+                }
+                else
+                {
+                    execute_command(&cmd);              // 如果电机未运行，重新执行命令
+                    new_data_flag = 1;                  // 设置新数据标志位，表示更新数据
+                    is_motor_running = 1;               // 设置电机运行状态
+                }
+            }
+            else
+            {
+                execute_command(&cmd);              // 如果两次命令不同，执行新命令
+                new_data_flag = 1;                  // 设置新数据标志位，表示更新数据
+                is_motor_running = 1;               // 设置电机运行状态
+            }
+
+            // 保存当前命令为上一次命令
+            strncpy(last_command, current_command, COMMAND_SIZE);
+            last_command[COMMAND_SIZE - 1] = '\0'; // 确保字符串以空字符结尾
 
             clean_rebuff();                     // 处理数据后，清空接收蓝牙模块数据的缓冲区
-
-            execute_command(&cmd);              // 执行命令
 
         }
     }
@@ -553,11 +583,10 @@ void BLE_control(void)
 
 Command parse_command(const char* data)  //把接收到的蓝牙数据进行解析
 {
-    Command cmd = {0};  // 初始化结构体为零
-    // 复制数据以避免破坏原始数据
-    char temp_data[50];
+    Command cmd = {0};                                    // 初始化结构体为零
+    char temp_data[50];                                  // 复制数据以避免破坏原始数据
     strncpy(temp_data, data, sizeof(temp_data) - 1);
-    temp_data[sizeof(temp_data) - 1] = '\0';  // 确保字符串以 '\0' 结尾
+    temp_data[sizeof(temp_data) - 1] = '\0';            // 确保字符串以 '\0' 结尾
 
     // 分割字符串
     char* token = strtok(temp_data, "-");  //将一个字符串分割成一系列的标记（tokens），每个标记之间由指定的分隔符隔开。返回指向被分割的第一个标记的指针。如果没有更多的标记，则返回 NULL。
@@ -786,10 +815,12 @@ int freq_chose(const char *speed_str)
     }
     if (strcmp(speed_str, "02")== 0)
     {
+        LED5_TOGGLE;
         return 4000;
     }
     if (strcmp(speed_str, "03")== 0)
     {
+        LED5_TOGGLE;
         return 4500;
     }
     if (strcmp(speed_str, "04")== 0)
@@ -799,6 +830,7 @@ int freq_chose(const char *speed_str)
     }
     if (strcmp(speed_str, "05")== 0)
     {
+        LED5_TOGGLE;
         return 5500;
     }
     return -1;  // 默认值，如果未匹配任何已知速度
@@ -821,63 +853,102 @@ void motor1_motor2_motor3_motor4_control(void)
 void Fixed_control(void)
 {
     static uint8_t state = 0;
-    if (Fixedcnt == 1)
+    static uint32_t last_tick = 0;
+
+    switch (state)
     {
-        switch (state)
-        {
-            case 0: // 初始化并启动 M1、M2、M3、M4
+        case 0:
+            // 初始化并启动 M1、M2、M3、M4
+            motor1_motor2_motor3_motor4_control();
+            last_tick = HAL_GetTick();  // 获取当前时间戳
+            state = 1;
+            break;
+
+        case 1:
+            // 等待一段时间以确保发球机移动到位
+            if (HAL_GetTick() - last_tick >= 3000)  // 例如等待1000ms
             {
-                motor1_motor2_motor3_motor4_control();  //控制M1、M2、M3、M4
                 set_motor5_direction(MOTOR_REV);
                 set_motor5_speed(currentSelectmotor5_speed);
-                HAL_Delay(3000);    /** 五秒过后才打开电机的启动 */
                 set_motor5_enable();
-                state = 1;
-                break;
+                last_tick = HAL_GetTick();  // 更新时间戳
+                state = 2;
             }
-            case 1:
+            break;
+
+        case 2:
+            // 等待一段时间以确保电机5完成其操作
+            if (HAL_GetTick() - last_tick >= 1000)  // 检查是否已经经过了3000ms
             {
-                if (Dropping_adc_mean < 400)
-                {
-                    // 关闭电机
-                    HAL_Delay(500);
-                    set_motor5_disable();
-                    state = 0;                  // 重置状态机
-                    Fixedcnt = 0;               // 重置控制标志位
-                    sensor_triggered = 1;
-                }
-                if (param_updated_flag)
-                {
-                    // 重新加载参数
-                    set_motor5_speed(currentSelectmotor5_speed);
-                    param_updated_flag = 0; // 重置参数更新标志位
-                }
-                break;
+                state = 3;
             }
-        }
+            break;
+
+        case 3:
+            // 检测Dropping_adc_mean以判断球是否落下
+            if (Dropping_adc_mean < 400)
+            {
+                // 关闭电机5
+                set_motor5_disable();
+                state = 0;  // 重置状态机
+                Fixedcnt = 0;  // 重置控制标志位
+                sensor_triggered = 1;
+            }
+            break;
     }
 }
 
+typedef enum {
+    REPEAT_IDLE,
+    REPEAT_RUNNING,
+    REPEAT_WAITING_SENSOR
+} RepeatState;
+
+RepeatState repeat_state = REPEAT_IDLE;             //初始化状态机
+int loop_count = 0;
+int repeat_count_comparison_value = 0;
+
 void repeat_function(void)
 {
-    if (repeat_flag == 1)
+    //每次进入函数，首先检查 new_data_flag 标志位
+    if (new_data_flag == 1)                          //如果有数据更新，重置状态机
     {
-        int loop_count = 0;
-        int repeat_count_comparison_value = 0;
-        repeat_count_comparison_value = currentSelectrepeat_count;       //传递需要重复的次数
-
-        while (loop_count < repeat_count_comparison_value)              // 这里是一个示例，循环3次
-        {
-            sensor_triggered = 0;
-            Fixedcnt = 1;
-            // 等待 Fixed_control 完成其任务
-            while (sensor_triggered == 0)         //当sensor_triggered = 1的时候,即有球落下触发传感器，跳出循环
+        repeat_state = REPEAT_IDLE;                 // 重置状态机
+        new_data_flag = 0;                          // 清除新数据标志位
+    }
+    switch (repeat_state)
+    {
+        case REPEAT_IDLE:
+            if (repeat_flag == 1)
             {
-                Fixed_control(); // 持续调用 Fixed_control，直到其完成任务并重置 Fixedcnt
+                repeat_flag = 0;                        // 立即清除标志位，避免重复进入这个状态
+                loop_count = 0;                         //初始化重复计数器
+                repeat_state = REPEAT_RUNNING;          //准备进入下一状态
             }
-            loop_count++;  // 有球落下后，循环计数器自增1
-        }
-        repeat_flag = 0;
+            break;
+
+        case REPEAT_RUNNING:
+            sensor_triggered = 0;                       //表示尚未触发传感器
+            Fixedcnt = 1;                               //表明定点模式控制已启动
+            repeat_state = REPEAT_WAITING_SENSOR;      //准备等待传感器触发
+            break;
+
+        case REPEAT_WAITING_SENSOR:
+            repeat_count_comparison_value = currentSelectrepeat_count;      //传递需要循环的次数
+            Fixed_control();                                                // 持续调用 Fixed_control，直到其完成任务并重置 Fixedcnt
+            if (sensor_triggered == 1)                                      //表示传感器已经触发
+            {
+                loop_count++;                                               //将计数器自增1
+                if (loop_count >= repeat_count_comparison_value)            //检查是否达到需要重复的次数
+                {
+                    repeat_state = REPEAT_IDLE;                             //达到了表示任务完成
+                }
+                else
+                {
+                    repeat_state = REPEAT_RUNNING;                          //未达到返回上一状态再循环
+                }
+            }
+            break;
     }
 }
 
