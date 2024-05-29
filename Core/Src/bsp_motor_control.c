@@ -46,7 +46,18 @@ int  currentSelectrepeat_count = -1;
 int currentSelectmotor5_speed = 3000;
 
 volatile int new_data_flag = 0; // 标志位，表示有新数据
+uint8_t fixed_control_state = 0;
 
+typedef enum
+{
+    REPEAT_IDLE,
+    REPEAT_RUNNING,
+    REPEAT_WAITING_SENSOR
+} RepeatState;
+
+RepeatState repeat_state = REPEAT_IDLE;             //初始化状态机
+int loop_count = 0;
+int repeat_count_comparison_value = 0;
 
 typedef struct
 {
@@ -854,13 +865,13 @@ void Fixed_control(void)
     static uint8_t state = 0;
     static uint32_t last_tick = 0;
 
-    switch (state)
+    switch (fixed_control_state)
     {
         case 0:
             // 初始化并启动 M1、M2、M3、M4
             motor1_motor2_motor3_motor4_control();
             last_tick = HAL_GetTick();  // 获取当前时间戳
-            state = 1;
+            fixed_control_state = 1;
             break;
 
         case 1:
@@ -871,7 +882,7 @@ void Fixed_control(void)
                 set_motor5_speed(currentSelectmotor5_speed);
                 set_motor5_enable();
                 last_tick = HAL_GetTick();  // 更新时间戳
-                state = 2;
+                fixed_control_state = 2;
             }
             break;
 
@@ -879,7 +890,7 @@ void Fixed_control(void)
             // 等待一段时间以确保电机5完成其操作
             if (HAL_GetTick() - last_tick >= 1000)  // 检查是否已经经过了3000ms
             {
-                state = 3;
+                fixed_control_state = 3;
             }
             break;
 
@@ -889,23 +900,12 @@ void Fixed_control(void)
             {
                 // 关闭电机5
                 set_motor5_disable();
-                state = 0;  // 重置状态机
-                Fixedcnt = 0;  // 重置控制标志位
+                fixed_control_state = 0;  // 重置状态机
                 sensor_triggered = 1;
             }
             break;
     }
 }
-
-typedef enum {
-    REPEAT_IDLE,
-    REPEAT_RUNNING,
-    REPEAT_WAITING_SENSOR
-} RepeatState;
-
-RepeatState repeat_state = REPEAT_IDLE;             //初始化状态机
-int loop_count = 0;
-int repeat_count_comparison_value = 0;
 
 void repeat_function(void)
 {
@@ -915,6 +915,7 @@ void repeat_function(void)
         repeat_state = REPEAT_IDLE;                 // 重置状态机
         loop_count = 0;                             //初始化重复计数器
         new_data_flag = 0;                          // 清除新数据标志位
+//        fixed_control_state = 0;
     }
     switch (repeat_state)
     {
@@ -927,13 +928,12 @@ void repeat_function(void)
             break;
 
         case REPEAT_RUNNING:
-            Fixedcnt = 1;                               //表明定点模式控制已启动
             repeat_state = REPEAT_WAITING_SENSOR;      //准备等待传感器触发
             break;
 
         case REPEAT_WAITING_SENSOR:
             repeat_count_comparison_value = currentSelectrepeat_count;      //传递需要循环的次数
-            Fixed_control();                                                // 持续调用 Fixed_control，直到其完成任务并重置 Fixedcnt
+            Fixed_control();                                                // 持续调用 Fixed_control，直到其完成任务并重置状态机
             if (sensor_triggered == 1)                                      //表示传感器已经触发
             {
                 sensor_triggered = 0;                                       //表示尚未触发传感器
