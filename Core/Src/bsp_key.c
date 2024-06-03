@@ -154,13 +154,10 @@ void Key_control(void)
             /*获取数据*/
             redata1 = get_rebuff(&len);        //把蓝牙数据读取到redata
             // 解析命令
-            Command cmd = parse_command(redata1);
+            parse_command(redata1);
             // 处理数据后，清空接收蓝牙模块数据的缓冲区
             clean_rebuff();
-            // 执行命令
-            execute_command(&cmd);
         }
-//        BLE_WAKEUP_HIGHT;
     }
 
     /* 扫描KEY5 */

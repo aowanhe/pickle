@@ -47,6 +47,7 @@ int currentSelectmotor5_speed = 3000;
 
 volatile int new_data_flag = 0; // 标志位，表示有新数据
 uint8_t fixed_control_state = 0;
+int reset_flag = 0;
 
 typedef enum
 {
@@ -58,6 +59,7 @@ typedef enum
 RepeatState repeat_state = REPEAT_IDLE;             //初始化状态机
 int loop_count = 0;
 int repeat_count_comparison_value = 0;
+int motor5_current_count = 0;
 
 typedef struct
 {
@@ -535,11 +537,6 @@ void motor4_pid_control(void)
     }
 }
 
-#define COMMAND_SIZE 50                      // 假设命令的最大长度为 50
-char last_command[COMMAND_SIZE] = {0}; // 用于保存上一次命令的全局变量
-char current_command[COMMAND_SIZE] = {0}; // 用于保存当前命令的全局变量
-int is_motor_running = 0; // 表示电机当前状态
-
 void BLE_control(void)
 {
     char* redata;       //定义读数据的指针
@@ -556,85 +553,66 @@ void BLE_control(void)
         /*检查数据是否有更新*/
         if (linelen < 50 && linelen != 0)
         {
-            Command cmd = parse_command(redata);            // 解析命令
-            strncpy(current_command, redata, COMMAND_SIZE);      // 保存当前命令
-            current_command[COMMAND_SIZE - 1] = '\0';           // 确保字符串以空字符结尾
-            // 比较当前命令与上一次命令
-            if (strcmp(current_command, last_command) == 0)
-            {
-                if (is_motor_running == 1)
-                {
-                    set_motor5_disable(); // 如果电机正在运行，停止电机
-                    is_motor_running = 0; // 重置电机运行状态
-                }
-                else
-                {
-                    execute_command(&cmd);              // 如果电机未运行，重新执行命令
-                    new_data_flag = 1;                  // 设置新数据标志位，表示更新数据
-                    is_motor_running = 1;               // 设置电机运行状态
-                }
-            }
-            else
-            {
-                execute_command(&cmd);              // 如果两次命令不同，执行新命令
-                new_data_flag = 1;                  // 设置新数据标志位，表示更新数据
-                is_motor_running = 1;               // 设置电机运行状态
-            }
-
-            // 保存当前命令为上一次命令
-            strncpy(last_command, current_command, COMMAND_SIZE);
-            last_command[COMMAND_SIZE - 1] = '\0'; // 确保字符串以空字符结尾
+            parse_command(redata);            // 解析命令
 
             clean_rebuff();                     // 处理数据后，清空接收蓝牙模块数据的缓冲区
-
         }
     }
 }
 
-Command parse_command(const char* data)  //把接收到的蓝牙数据进行解析
+void parse_command(const char* data)  //把接收到的蓝牙数据进行解析
 {
-    Command cmd = {0};                                    // 初始化结构体为零
     char temp_data[50];                                  // 复制数据以避免破坏原始数据
     strncpy(temp_data, data, sizeof(temp_data) - 1);
     temp_data[sizeof(temp_data) - 1] = '\0';            // 确保字符串以 '\0' 结尾
 
-    // 分割字符串
-    char* token = strtok(temp_data, "-");  //将一个字符串分割成一系列的标记（tokens），每个标记之间由指定的分隔符隔开。返回指向被分割的第一个标记的指针。如果没有更多的标记，则返回 NULL。
-    int token_count = 0;
-
-    while (token != NULL)
+    if(strcmp(temp_data, "8") == 0)
     {
-        switch (token_count)
-        {
-            case 0:
-                // 提取模式，直接使用字符
-                cmd.mode = token[0];
-                break;
-            case 1:
-                // 提取位点
-                strncpy(cmd.positions, token, sizeof(cmd.positions) - 1);
-                cmd.positions[sizeof(cmd.positions) - 1] = '\0';
-                break;
-            case 2:
-                // 提取循环次数
-                cmd.current_repeat_count = strtol(token, NULL, 10);     //使用strtol转换为十进制整数
-            case 3:
-                // 提取频率
-                strncpy(cmd.speed_str, token, sizeof(cmd.speed_str) - 1);
-                break;
-            default:
-                break;
-        }
-        token = strtok(NULL, "-");      //提取 ‘-’ 前面的字符串
-        token_count++;
+        motor5_flag = 1;
     }
-    return cmd;
+    else if(strcmp(temp_data, "9") == 0)
+    {
+        reset_flag = 1;
+    }
+    else if(strcmp(temp_data, "9") != 0 && strcmp(temp_data, "8") != 0)
+    {
+        Command cmd = {0};                                    // 初始化结构体为零
+        // 分割字符串
+        char* token = strtok(temp_data, "-");  //将一个字符串分割成一系列的标记（tokens），每个标记之间由指定的分隔符隔开。返回指向被分割的第一个标记的指针。如果没有更多的标记，则返回 NULL。
+        int token_count = 0;
+        while (token != NULL)
+        {
+            switch (token_count)
+            {
+                case 0:
+                    // 提取模式，直接使用字符
+                    cmd.mode = token[0];
+                    break;
+                case 1:
+                    // 提取位点
+                    strncpy(cmd.positions, token, sizeof(cmd.positions) - 1);
+                    cmd.positions[sizeof(cmd.positions) - 1] = '\0';
+                    break;
+                case 2:
+                    // 提取循环次数
+                    cmd.current_repeat_count = strtol(token, NULL, 10);     //使用strtol转换为十进制整数
+                case 3:
+                    // 提取频率
+                    strncpy(cmd.speed_str, token, sizeof(cmd.speed_str) - 1);
+                    break;
+                default:
+                    break;
+            }
+            token = strtok(NULL, "-");      //提取 ‘-’ 前面的字符串
+            token_count++;
+        }
+        execute_command(&cmd);              // 解析数据后，执行新命令
+    }
 }
 
 void execute_command(const Command* cmd)
 {
-    //设置频率
-    int speed_value = freq_chose(cmd->speed_str);
+    int speed_value = freq_chose(cmd->speed_str);    //设置频率
     if (speed_value > 0)
     {
         currentSelectmotor5_speed = speed_value;
@@ -706,6 +684,8 @@ void execute_command(const Command* cmd)
         LED3_TOGGLE
         repeat_flag = 1;
     }
+
+    new_data_flag = 1;                  // 设置新数据标志位，表示更新数据
 }
 
 int Fixed_chose(char *positions)       //根据second_char的判断，返回对应的值，作为数组的信号，确定对应的点位
@@ -862,7 +842,6 @@ void motor1_motor2_motor3_motor4_control(void)
 
 void Fixed_control(void)
 {
-    static uint8_t state = 0;
     static uint32_t last_tick = 0;
 
     switch (fixed_control_state)
@@ -876,11 +855,8 @@ void Fixed_control(void)
 
         case 1:
             // 等待一段时间以确保发球机移动到位
-            if (HAL_GetTick() - last_tick >= 4000)  // 例如等待1000ms
+            if (HAL_GetTick() - last_tick >= 1000)  // 例如等待1000ms
             {
-                set_motor5_direction(MOTOR_REV);
-                set_motor5_speed(currentSelectmotor5_speed);
-                set_motor5_enable();
                 last_tick = HAL_GetTick();  // 更新时间戳
                 fixed_control_state = 2;
             }
@@ -900,8 +876,16 @@ void Fixed_control(void)
             {
                 // 关闭电机5
                 set_motor5_disable();
-                fixed_control_state = 0;  // 重置状态机
                 sensor_triggered = 1;
+                // 处理重复次数
+                if (motor5_current_count   > 0)
+                {
+                    motor5_current_count--; // 减少当前循环次数
+                }
+                if (motor5_current_count == 0) // 检查是否达到预定的循环次数
+                {
+                    fixed_control_state = 0;  // 重置状态机
+                }
             }
             break;
     }
@@ -915,7 +899,6 @@ void repeat_function(void)
         repeat_state = REPEAT_IDLE;                 // 重置状态机
         loop_count = 0;                             //初始化重复计数器
         new_data_flag = 0;                          // 清除新数据标志位
-//        fixed_control_state = 0;
     }
     switch (repeat_state)
     {
@@ -945,6 +928,11 @@ void repeat_function(void)
                 {
                     loop_count++;                                            //将计数器自增1
                     repeat_state = REPEAT_RUNNING;                          //未达到返回上一状态再循环
+                    if (motor5_current_count > 0)
+                    {
+                        HAL_Delay(3000);
+                        motor5_flag = 1;                // 设置标志位，使其再次执行
+                    }
                 }
             }
             break;
@@ -1050,6 +1038,37 @@ void random_control(void)
             set_motor5_speed(3500);
             set_motor5_enable();
         }
+    }
+}
+
+void motor_reset(void)
+{
+    if(1 == reset_flag)
+    {
+        LED5_TOGGLE
+        __set_FAULTMASK(1);
+        NVIC_SystemReset();
+    }
+    reset_flag = 0;
+}
+
+void motor5_control(void)
+{
+    if (1 == motor5_flag)
+    {
+        LED5_TOGGLE
+        motor5_current_count = currentSelectrepeat_count;
+        if (!is_motor5_en) // 当 is_motor5_en 为 0（假）时，这里的代码将会执行
+        {
+            set_motor5_direction(MOTOR_REV);
+            set_motor5_speed(currentSelectmotor5_speed);
+            set_motor5_enable(); // 启用电机
+        }
+        else
+        {
+            set_motor5_disable(); // 停止电机
+        }
+        motor5_flag = 0; // 清除标志，防止重复执行
     }
 }
 
@@ -1163,192 +1182,3 @@ void motor1_motor2_slowdown(void)
     set_motor1_speed(motor1_ChannelPulse);
     set_motor2_speed(motor2_ChannelPulse);
 }
-
-void motor_reset(void)
-{
-    LED5_TOGGLE
-    __set_FAULTMASK(1);
-    NVIC_SystemReset();
-}
-
-void motor5_control(void)
-{
-    if(1 == motor5_flag)
-    {
-        if(Dropping_adc_mean < 400)
-        {
-            HAL_Delay(500);
-            randomcnt1 = 1;
-            set_motor5_disable();
-        }
-/** 保证每个位置执行一次，要等待上方传感器产生低电平信号 */
-        if(1 == randomcnt5)
-        {
-            randomcnt5 = 0;
-            set_motor5_direction(MOTOR_REV);
-            set_motor5_speed(3500);
-            set_motor5_enable();
-        }
-    }
-}
-
-//            if (first_char == 'a')    //向上
-//            {
-//                clean_rebuff();
-//                LED5_TOGGLE
-//                uint16_t temp_val = get_pid_target(&pid4); // 获取当前PID目标值
-//                if (temp_val >= 700) {
-//                    temp_val -= 150; // 每次减少150
-//                    if (temp_val < 700) {
-//                        temp_val = 700; // 如果减少后的值小于700，则将其设置为700
-//                    }
-//                    set_pid_target4(&pid4, temp_val); // 设置新的PID目标值
-//                }
-//            }
-//            if (first_char == 'b')       //向下
-//            {
-//                clean_rebuff();
-//                LED2_TOGGLE
-//                uint16_t temp_val = get_pid_target(&pid4); // 获取当前PID目标值
-//                if (temp_val <= 2100) {
-//                    temp_val += 150; // 每次增加150
-//                    if (temp_val > 2100) {
-//                        temp_val = 2100; // 如果增加后的值大于2100，则将其设置为2100
-//                    }
-//                    set_pid_target4(&pid4, temp_val); // 设置新的PID目标值
-//                }
-//            }
-//            if (first_char == '3')          //左
-//            {
-//                clean_rebuff();
-//                LED3_TOGGLE
-//                uint16_t temp_val = get_pid_target(&pid3); // 获取当前PID目标值
-//                if (temp_val >= 700) {
-//                    temp_val -= 150; // 每次减少150
-//                    if (temp_val < 700) {
-//                        temp_val = 700; // 如果减少后的值小于700，则将其设置为700
-//                    }
-//                    set_pid_target3(&pid3, temp_val); // 设置新的PID目标值
-//                }
-//            }
-//            if (first_char == '4')       //右
-//            {
-//                clean_rebuff();
-//                LED4_TOGGLE
-//                uint16_t temp_val = get_pid_target(&pid3); // 获取当前PID目标值
-//                if (temp_val <= 2200) {
-//                    temp_val += 150; // 每次增加100
-//                    if (temp_val > 2200) {
-//                        temp_val = 2200; // 如果增加后的值大于2100，则将其设置为2100
-//                    }
-//                    set_pid_target3(&pid3, temp_val); // 设置新的PID目标值
-//                }
-//            }
-//            if (first_char == '5')       //启停M1、M2
-//            {
-//                clean_rebuff();
-//                LED5_TOGGLE
-//                if (!is_motor1_en && !is_motor2_en) {
-//                    set_motor1_enable();
-//                    set_motor1_direction(MOTOR_FWD);
-//                    set_motor1_speed(1800);
-//
-//                    set_motor2_enable();
-//                    set_motor2_direction(MOTOR_REV);
-//                    set_motor2_speed(1800);
-//                }
-//                else {
-//                    set_motor1_disable();
-//                    set_motor2_disable();
-//                }
-//            }
-//            if (first_char == 'c')       //设置M1、M2不同占空比
-//            {
-//                clean_rebuff();
-//                LED5_TOGGLE
-//                if (!is_motor1_en && !is_motor2_en)
-//                {
-//                    set_motor1_enable();
-//                    set_motor1_direction(MOTOR_FWD);
-//                    set_motor1_speed(1500);
-//
-//                    set_motor2_enable();
-//                    set_motor2_direction(MOTOR_REV);
-//                    set_motor2_speed(2500);
-//                }
-//                else
-//                {
-//                    set_motor1_disable();
-//                    set_motor2_disable();
-//                }
-//            }
-//            if (first_char == 'd')       //设置M1、M2不同占空比
-//            {
-//                clean_rebuff();
-//                LED5_TOGGLE
-//                if (!is_motor1_en && !is_motor2_en) {
-//                    set_motor1_enable();
-//                    set_motor1_direction(MOTOR_FWD);
-//                    set_motor1_speed(2500);
-//
-//                    set_motor2_enable();
-//                    set_motor2_direction(MOTOR_REV);
-//                    set_motor2_speed(1500);
-//                }
-//                else {
-//                    set_motor1_disable();
-//                    set_motor2_disable();
-//                }
-//            }
-//            if (first_char == '6')       //M1、M2加速
-//            {
-//                clean_rebuff();
-//                __IO uint16_t motor1_ChannelPulse = 2000; // 9000
-//                __IO uint16_t motor2_ChannelPulse = 2000;
-//
-//                LED5_TOGGLE
-//                motor1_ChannelPulse += 100;
-//                motor2_ChannelPulse += 100;
-//                if ((motor1_ChannelPulse > PWM_MAX_PERIOD_COUNT) || (motor2_ChannelPulse > PWM_MAX_PERIOD_COUNT)) {
-//                    motor1_ChannelPulse = PWM_MAX_PERIOD_COUNT;
-//                    motor2_ChannelPulse = PWM_MAX_PERIOD_COUNT;
-//                }
-//                set_motor1_speed(motor1_ChannelPulse);
-//                set_motor2_speed(motor2_ChannelPulse);
-//            }
-//            if (first_char == '7')           //M1、M2减速
-//            {
-//                clean_rebuff();
-//                __IO uint16_t motor1_ChannelPulse = 2000; // 9000
-//                __IO uint16_t motor2_ChannelPulse = 2000;
-//                LED5_TOGGLE
-//                motor1_ChannelPulse -= 100;
-//                motor2_ChannelPulse -= 100;
-//                if ((motor1_ChannelPulse < PWM_MAX_PERIOD_COUNT / 10) ||
-//                    (motor2_ChannelPulse < PWM_MAX_PERIOD_COUNT / 10)) {
-//                    motor1_ChannelPulse = 0;
-//                    motor2_ChannelPulse = 0;
-//                }
-//
-//                set_motor1_speed(motor1_ChannelPulse);
-//                set_motor2_speed(motor2_ChannelPulse);
-//            }
-//            if (first_char == '8')           //启停M5
-//            {
-//                clean_rebuff();
-//                LED5_TOGGLE
-//                if (!is_motor5_en) {
-//                    set_motor5_enable();
-//                    set_motor5_direction(MOTOR_FWD);
-//                    set_motor5_speed(3000);
-//                } else {
-//                    set_motor5_disable();
-//                }
-//            }
-//            if (first_char == '9')           //复位
-//            {
-//                clean_rebuff();
-//                LED5_TOGGLE
-//                __set_FAULTMASK(1);
-//                NVIC_SystemReset();
-//            }

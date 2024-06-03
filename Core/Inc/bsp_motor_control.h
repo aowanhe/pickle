@@ -137,7 +137,7 @@ void motor5_control(void);
 
 void motor_reset(void);
 void BLE_control(void);
-Command parse_command(const char* data);
+void parse_command(const char* data);
 void execute_command(const Command* cmd);
 
 void motor1_motor2_motor3_motor4_control(void);

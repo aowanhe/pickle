@@ -85,6 +85,8 @@ int main(void)
         Knob_control();
         BLE_control();
         repeat_function();
+        motor5_control();
+        motor_reset();
     }
 }
 
