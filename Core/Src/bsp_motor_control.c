@@ -47,7 +47,9 @@ int currentSelectmotor5_speed = 3000;
 
 volatile int new_data_flag = 0; // 标志位，表示有新数据
 uint8_t fixed_control_state = 0;
+uint8_t random_state = 0;
 int reset_flag = 0;
+int mode_select = 0;//辨别执行哪个模式
 
 typedef enum
 {
@@ -624,9 +626,11 @@ void execute_command(const Command* cmd)
             // 定点模式
             currentSelectPosition = Fixed_chose(cmd->positions); // 假设有个 Fixed_chose 函数处理位点选择
             Fixedcnt = 1;
+            mode_select = 1;
             break;
         case '2':
             //随机模式
+            mode_select = 2;
             if (strcmp(cmd->positions, "AA") == 0)
             {
                 if (all_random_flag == 1)
@@ -682,7 +686,7 @@ void execute_command(const Command* cmd)
     {
         currentSelectrepeat_count = cmd->current_repeat_count;
         LED3_TOGGLE
-        repeat_flag = 1;
+                repeat_flag = 1;
     }
 
     new_data_flag = 1;                  // 设置新数据标志位，表示更新数据
@@ -826,9 +830,8 @@ int freq_chose(const char *speed_str)
     return -1;  // 默认值，如果未匹配任何已知速度
 }
 
-void motor1_motor2_motor3_motor4_control(void)
+void motor1_motor2_motor3_motor4_control(Position selected_position)
 {
-    Position selected_position = all_positions[currentSelectPosition];
     set_pid_target3(&pid3, selected_position.vertical);
 //                set_pid_target4(&pid4, selected_position.horizontal);
 //                set_motor1_enable();
@@ -848,7 +851,8 @@ void Fixed_control(void)
     {
         case 0:
             // 初始化并启动 M1、M2、M3、M4
-            motor1_motor2_motor3_motor4_control();
+            Position selected_position = all_positions[currentSelectPosition];
+            motor1_motor2_motor3_motor4_control(selected_position);
             last_tick = HAL_GetTick();  // 获取当前时间戳
             fixed_control_state = 1;
             break;
@@ -916,6 +920,15 @@ void repeat_function(void)
 
         case REPEAT_WAITING_SENSOR:
             repeat_count_comparison_value = currentSelectrepeat_count;      //传递需要循环的次数
+            switch (mode_select)
+            {
+                case 1:
+                    Fixed_control();
+                    break;
+                case 2:
+                    random_control();
+                    break;
+            }                                                               //运行不同模式
             Fixed_control();                                                // 持续调用 Fixed_control，直到其完成任务并重置状态机
             if (sensor_triggered == 1)                                      //表示传感器已经触发
             {
@@ -941,104 +954,53 @@ void repeat_function(void)
 
 void random_control(void)
 {
-    //随机模式：全场
-    if(1 == all_random_flag)
+    static uint32_t last_tick = 0;
+    static Position selected_position;
+    switch (random_state)
     {
-        if(Dropping_adc_mean < 400)
-        {
-            HAL_Delay(500);
-            randomcnt1 = 1;
-            set_motor5_disable();
-        }
-/** 保证每个位置执行一次，要等待上方传感器产生低电平信号 */
-        if(1 == randomcnt1)
-        {
-            randomcnt1 = 0;
-            srand(HAL_GetTick()); // 初始化随机数发生器
-            int index = generate_random_all_position(); // 获取随机位置索引
-            Position selected_position = all_positions[index]; // 获取选定的位置数据
-
-            set_pid_target3(&pid3, selected_position.vertical);
-            set_pid_target4(&pid4, selected_position.horizontal);
-            set_motor1_enable();
-            set_motor1_direction(MOTOR_FWD);
-            set_motor1_speed(selected_position.M1speed);
-            set_motor2_enable();
-            set_motor2_direction(MOTOR_REV);
-            set_motor2_speed(selected_position.M2speed);
-            HAL_Delay(2000);
-/** 两秒过后才打开电机的启动 */
-            set_motor5_direction(MOTOR_REV);
-            set_motor5_speed(3500);
-            set_motor5_enable();
-        }
+        case 0:
+            if(1 == all_random_flag)
+            {
+                srand(HAL_GetTick()); // 初始化随机数发生器
+                int index = generate_random_all_position(); // 获取随机位置索引
+                selected_position = all_positions[index]; // 获取选定的位置数据
+            }
+            //随机模式：左半场
+            if(1 == left_random_flag)
+            {
+                srand(HAL_GetTick()); // 初始化随机数发生器
+                int index = generate_random_left_position(); // 获取随机位置索引
+                elected_position = left_positions[index]; // 获取选定的位置数据
+            }
+            //随机模式：右半场
+            if(1 == right_random_flag)
+            {
+                srand(HAL_GetTick()); // 初始化随机数发生器
+                int index = generate_random_right_position(); // 获取随机位置索引
+                selected_position = right_positions[index]; // 获取选定的位置数据
+            }
+            random_state = 1;
+            break;
+        case 1:
+            motor1_motor2_motor3_motor4_control(selected_position);
+            last_tick = HAL_GetTick();  // 获取当前时间戳
+            random_state = 2;
+            break;
+        case 2:
+            if (HAL_GetTick() - last_tick >= 1000)
+            { random_state = 3;} // 等待电机转动
+            break;
+        case 3:
+            if (Dropping_adc_mean < 1000)
+            {
+                // 关闭电机5
+                set_motor5_disable();
+                sensor_triggered = 1;
+                random_state = 0;
+            }
+            break;
     }
 
-    //随机模式：左半场
-    if(1 == left_random_flag)
-    {
-        if(Dropping_adc_mean < 400)
-        {
-            HAL_Delay(500);
-            randomcnt2 = 1;
-            set_motor5_disable();
-        }
-/** 保证每个位置执行一次，要等待上方传感器产生低电平信号 */
-        if(1 == randomcnt2)
-        {
-            randomcnt2 = 0;
-            srand(HAL_GetTick()); // 初始化随机数发生器
-            int index = generate_random_left_position(); // 获取随机位置索引
-            Position selected_position = left_positions[index]; // 获取选定的位置数据
-
-            set_pid_target3(&pid3, selected_position.vertical);
-            set_pid_target4(&pid4, selected_position.horizontal);
-            set_motor1_enable();                            //A1
-            set_motor1_direction(MOTOR_FWD);
-            set_motor1_speed(selected_position.M1speed);
-            set_motor2_enable();
-            set_motor2_direction(MOTOR_REV);
-            set_motor2_speed(selected_position.M2speed);
-            HAL_Delay(2000);
-/** 两秒过后才打开电机的启动 */
-            set_motor5_direction(MOTOR_REV);
-            set_motor5_speed(3500);
-            set_motor5_enable();
-        }
-    }
-
-    //随机模式：右半场
-    if(1 == right_random_flag)
-    {
-        if(Dropping_adc_mean < 400)
-        {
-            HAL_Delay(500);
-            randomcnt3 = 1;
-            set_motor5_disable();
-        }
-/** 保证每个位置执行一次，要等待上方传感器产生低电平信号 */
-        if(1 == randomcnt3)
-        {
-            randomcnt3 = 0;
-            srand(HAL_GetTick()); // 初始化随机数发生器
-            int index = generate_random_right_position(); // 获取随机位置索引
-            Position selected_position = right_positions[index]; // 获取选定的位置数据
-
-            set_pid_target3(&pid3, selected_position.vertical);
-            set_pid_target4(&pid4, selected_position.horizontal);
-            set_motor1_enable();                            //A1
-            set_motor1_direction(MOTOR_FWD);
-            set_motor1_speed(selected_position.M1speed);
-            set_motor2_enable();
-            set_motor2_direction(MOTOR_REV);
-            set_motor2_speed(selected_position.M2speed);
-            HAL_Delay(2000);
-/** 两秒过后才打开电机的启动 */
-            set_motor5_direction(MOTOR_REV);
-            set_motor5_speed(3500);
-            set_motor5_enable();
-        }
-    }
 }
 
 void motor_reset(void)
@@ -1057,7 +1019,7 @@ void motor5_control(void)
     if (1 == motor5_flag)
     {
         LED5_TOGGLE
-        motor5_current_count = currentSelectrepeat_count;
+                motor5_current_count = currentSelectrepeat_count;
         if (!is_motor5_en) // 当 is_motor5_en 为 0（假）时，这里的代码将会执行
         {
             set_motor5_direction(MOTOR_REV);
