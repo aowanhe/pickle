@@ -929,7 +929,6 @@ void repeat_function(void)
                     random_control();
                     break;
             }                                                               //运行不同模式
-            Fixed_control();                                                // 持续调用 Fixed_control，直到其完成任务并重置状态机
             if (sensor_triggered == 1)                                      //表示传感器已经触发
             {
                 sensor_triggered = 0;                                       //表示尚未触发传感器
