@@ -48,6 +48,9 @@ int currentSelectmotor5_speed = 3000;
 volatile int new_data_flag = 0; // 标志位，表示有新数据
 uint8_t fixed_control_state = 0;
 uint8_t random_state = 0;
+uint8_t horizontal_state = 0;
+int horizontal_count = -1;
+char horizontal_Position[10];
 int reset_flag = 0;
 int mode_select = 0;//辨别执行哪个模式
 
@@ -63,13 +66,7 @@ int loop_count = 0;
 int repeat_count_comparison_value = 0;
 int motor5_current_count = 0;
 
-typedef struct
-{
-    float horizontal;//仰角pid4
-    float vertical;//水平摆角pid3
-    float M1speed;
-    float M2speed;
-} Position;
+
 
 Position all_positions[25] =
         {
@@ -676,7 +673,23 @@ void execute_command(const Command* cmd)
             break;
         case '3':
             // 水平模式
-            // 处理水平模式的位点选择
+            mode_select = 3;
+            horizontal_count = 0;
+            char temp_positions[10];
+            strncpy(temp_positions, cmd.positions, sizeof(temp_positions) - 1);
+            temp_data[sizeof(temp_data) - 1] = '\0';
+            char *token;
+            char *delim = ".";
+            int i = 0;
+            // 获取第一个子字符串
+            token = strtok(str, delim);
+            // 继续获取其他的子字符串
+            while (token != NULL) {
+                temp_positions[i++] = token;
+                token = strtok(NULL, delim);
+            }
+            strncpy(horizontal_Position, temp_positions, sizeof(horizontal_Position) - 1);
+
             break;
             // 其他模式逻辑...
     }
@@ -928,6 +941,9 @@ void repeat_function(void)
                 case 2:
                     random_control();
                     break;
+                case 3:
+                    horizontal_control();
+                    break;
             }                                                               //运行不同模式
             if (sensor_triggered == 1)                                      //表示传感器已经触发
             {
@@ -996,6 +1012,54 @@ void random_control(void)
                 set_motor5_disable();
                 sensor_triggered = 1;
                 random_state = 0;
+            }
+            break;
+    }
+
+}
+
+void horizontal_control(void)
+{
+    static uint32_t last_tick = 0;
+
+    switch (horizontal_state)
+    {
+        case 0:
+            // 初始化并启动 M1、M2、M3、M4
+            currentSelectPosition = Fixed_chose(horizontal_Position[horizontal_count]);
+            Position selected_position = all_positions[currentSelectPosition];
+            motor1_motor2_motor3_motor4_control(selected_position);
+            last_tick = HAL_GetTick();  // 获取当前时间戳
+            horizontal_state = 1;
+            break;
+
+        case 1:
+            // 等待一段时间以确保发球机移动到位
+            if (HAL_GetTick() - last_tick >= 1000)  // 例如等待1000ms
+            {
+                last_tick = HAL_GetTick();  // 更新时间戳
+                horizontal_state = 2;
+            }
+            break;
+
+        case 2:
+            // 等待一段时间以确保电机5完成其操作
+            if (HAL_GetTick() - last_tick >= 1000)  // 检查是否已经经过了3000ms
+            {
+                horizontal_state = 3;
+            }
+            break;
+
+        case 3:
+            // 检测Dropping_adc_mean以判断球是否落下
+            if (Dropping_adc_mean < 1000)
+            {
+                // 关闭电机5
+                set_motor5_disable();
+                sensor_triggered = 1;
+                horizontal_count++;
+                if(horizontal_count>sizeof(horizontal_Position)){horizontal_count=0}
+                horizontal_state = 0;
             }
             break;
     }
